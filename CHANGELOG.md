@@ -7,6 +7,7 @@
 - With no pot picked, the right side lists every pot waiting on you, soonest first. A picked pot shows its timing, the seeds its next planting will try in order, and its preset.
 - Planting presets: seeds are set per pot size in three columns, with the next seed marked, an add-seed picker per size, and a panel that says what the preset will do with the seeds you own.
 - Robots are shown side by side. The forecast shows the next 48 hours on a timeline.
+- Cleaner layout: rooms, grouping and sorting sit above the crop list, a card leaves out the preset its room header already names, long seed and fertilizer names no longer clip, and forecast entries no longer overlap.
 
 ## 0.1.1
 

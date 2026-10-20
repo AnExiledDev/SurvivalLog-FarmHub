@@ -17,8 +17,10 @@
   var MAX_NEEDS = 14;
   var FORECAST_HOURS = 48;
   var FORECAST_STEP = 6;
-  // How wide a forecast chip is, as a share of the timeline, when deciding which lane it fits in.
+  // The least room a forecast chip takes, as a share of the timeline, when deciding which lane it fits in.
   var CHIP_SHARE = 17;
+  // About how wide the timeline is in pixels, for turning a chip's text length into a share of it.
+  var TIMELINE_PX = 880;
   var SVG_NS = 'http://www.w3.org/2000/svg';
   // A sprout: a stem with two leaves over a pot.
   var SPROUT_PATH = 'M11 21v-7.2C8.4 13.6 6 11.4 6 8c2.9 0 5 1.6 5 4.4V12h2v.4C13 9.6 15.1 8 18 8c0 3.4-2.4 5.6-5 5.8V21h-2zM6 18h12l-1 4H7l-1-4z';
@@ -489,11 +491,12 @@
     '.fh-capcols{display:grid;gap:8px}',
     '.fh-capcol{border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:6px;min-width:0}',
     '.fh-caphead{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:2px 2px 4px}.fh-caphead .fh-grow{flex:1}',
-    '.fh-step{display:grid;grid-template-columns:20px 30px minmax(0,1fr) auto;gap:7px;align-items:center;padding:6px 7px;border-radius:7px;background:rgba(255,255,255,.04);border-left:2px solid transparent}',
+    '.fh-step{display:grid;grid-template-columns:18px 30px minmax(0,1fr) auto;gap:6px;align-items:center;padding:6px 7px;border-radius:7px;background:rgba(255,255,255,.04);border-left:2px solid transparent}',
     '.fh-step.fh-short{border-left-color:#e53935}.fh-step.fh-go{border-left-color:#7cb342}.fh-step.fh-bad{opacity:.55}',
-    '.fh-ord{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:rgba(235,163,8,.18);color:#EBA308;font-weight:700;font-size:11px}',
+    '.fh-ord{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:rgba(235,163,8,.18);color:#EBA308;font-weight:700;font-size:11px}',
     '.fh-sinfo{min-width:0}.fh-sinfo b{font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}',
-    '.fh-sinfo small{display:block;font-size:11px;color:#888;line-height:1.35}',
+    '.fh-sinfo small{display:block;font-size:11px;color:#888;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.fh-cut{min-width:0;overflow:hidden;text-overflow:ellipsis}.fh-go .fh-ord{background:rgba(124,179,66,.3);color:#9ccc65}',
     '.fh-sctl{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.fh-moves{display:flex;gap:3px}',
     '.fh-dash{font-size:13px;color:#b8b8b8;padding:6px;border-radius:7px;border:1px dashed rgba(255,255,255,.18);background:none;cursor:pointer;text-align:center}',
     '.fh-dash:hover,.fh-dash.fh-on{color:#EBA308;border-color:rgba(235,163,8,.6)}',
@@ -516,9 +519,9 @@
     '.fh-tier.fh-thead{background:none;padding:2px 10px;color:#888;font-size:11px;letter-spacing:1px;text-transform:uppercase}',
     '.fh-tcell{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}',
     '.fh-tedit{padding:10px 12px;border-radius:7px;border:1px solid rgba(235,163,8,.5);background:rgba(235,163,8,.05);display:flex;flex-direction:column;gap:8px}',
-    '.fh-stock{width:560px;flex:none;padding:0 10px 12px}',
+    '.fh-stock{width:620px;flex:none;padding:0 10px 12px}',
     '.fh-trow{display:grid;gap:8px;align-items:center;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}',
-    '.fh-trow.fh-thead{color:#888;font-size:12px}.fh-trow .fh-tc{text-align:right;font-variant-numeric:tabular-nums}',
+    '.fh-trow.fh-thead{color:#888;font-size:12px;white-space:nowrap}.fh-trow .fh-tc{text-align:right;font-variant-numeric:tabular-nums}',
     '.fh-time{flex:1;min-width:0;padding:0 16px 14px}',
     '.fh-axis{position:relative;height:28px;margin:6px 0 0;border-bottom:1px solid rgba(255,255,255,.14)}',
     '.fh-tick{position:absolute;top:6px;transform:translateX(-50%);font-size:11px;color:#888;white-space:nowrap}',
@@ -1001,11 +1004,12 @@
 
     put(side, section(say('show')), showChips);
 
-    if (cropChips.firstChild) put(side, section(say('crops')), cropChips);
     if (rooms.length > 1) put(side, section(say('rooms')), roomChips);
 
     put(side, section(say('groupBy')), segment(GROUPS.map(function (g) { return [g[0], say(g[1])]; }), state.group, 'group'),
       section(say('sortBy')), segment(SORTS.map(function (s) { return [s[0], say(s[1])]; }), state.sort, 'sort'));
+
+    if (cropChips.firstChild) put(side, section(say('crops')), cropChips);
 
     return side;
   }
@@ -1071,7 +1075,9 @@
     groupsOf(shown).forEach(function (group) {
       var cards = el('div', 'fh-cards');
 
-      sorted(group.pots).forEach(function (pot) { cards.appendChild(potCard(pot)); });
+      var shared = headPreset(group);
+
+      sorted(group.pots).forEach(function (pot) { cards.appendChild(potCard(pot, shared)); });
       put(well, groupHead(group), cards);
     });
 
@@ -1112,7 +1118,7 @@
     if (state.group === 'crop') head = section(pot.plant ? cropOf(pot.plant).name : say('emptyPots'), right);
     else if (state.group === 'state') head = section(say(STATE_WORD[pot.state] || pot.state), right);
     else {
-      var preset = presetById(pot.preset);
+      var preset = headPreset(group);
 
       head = section(roomTitle(pot), right);
 
@@ -1121,6 +1127,11 @@
     }
 
     return head;
+  }
+
+  // A room group's header names its first pot's preset, so cards with that preset need not repeat it.
+  function headPreset(group) {
+    return state.group === 'room' ? presetById(group.first.preset) : null;
   }
 
   function sorted(list) {
@@ -1162,7 +1173,7 @@
     return live(track, pot.id, function (node, p) { fill.style.width = Math.max(0, Math.min(100, p.progress | 0)) + '%'; });
   }
 
-  function potCard(pot) {
+  function potCard(pot, shared) {
     var kind = kindOf(pot.kind);
     var crop = pot.plant ? cropOf(pot.plant) : null;
     var preset = presetById(pot.preset);
@@ -1170,7 +1181,7 @@
     var card = act(el('div', 'fh-card' + (pot.id === state.sel ? ' fh-sel' : '') + (pot.rotSoon ? ' fh-hot' : '')), 'pick', pot.id);
     var check = act(el('button', 'fh-chk' + (isChecked ? ' fh-on' : ''), isChecked ? '\u2713' : ''), 'check', pot.id);
     var main = put(el('div', 'fh-cmain'), potBadges(pot, put(el('div', 'fh-nm'), el('span', '', crop ? crop.name : say('stEmpty')), stateBadge(pot))),
-      timeLine(pot), el('div', 'fh-sub', kind.name + ' \u00b7 ' + (preset ? preset.name : say('noPreset'))));
+      timeLine(pot), el('div', 'fh-sub', preset && preset === shared ? kind.name : kind.name + ' \u00b7 ' + (preset ? preset.name : say('noPreset'))));
     var right = el('div', 'fh-crt');
 
     if (pot.robot) right.appendChild(badge(say('robot'), 'fh-b-blue'));
@@ -1557,8 +1568,8 @@
     var row = el('div', 'fh-step' + (!each ? ' fh-bad' : !plantings(step, cap) ? ' fh-short' : isNext ? ' fh-go' : ''));
     var detail = each ? say('nSeeds', have) + ' \u00b7 ' + hours(crop.grow) : say('tooBig');
     var args = cap + '|' + i;
-    var info = put(el('div', 'fh-sinfo'), el('b', '', crop.name),
-      el('small', !each || have - step.keep < each ? 'fh-red' : isNext ? 'fh-green' : '', isNext ? say('nextBadge') + ' \u00b7 ' + detail : detail));
+    var info = put(el('div', 'fh-sinfo'), put(el('b'), el('span', 'fh-cut', crop.name)),
+      el('small', !each || have - step.keep < each ? 'fh-red' : isNext ? 'fh-green' : '', detail));
     var stepper = put(el('div', 'fh-stepper'), plainButton('fh-stp', '-', 'keepless', args, step.keep > 0), el('b', '', String(step.keep)),
       plainButton('fh-stp', '+', 'keepmore', args, step.keep < MAX_KEEP));
     var moves = put(el('div', 'fh-moves'), plainButton('fh-ib', '\u2191', 'seedup', args, i > 0), plainButton('fh-ib', '\u2193', 'seeddown', args, i < count - 1),
@@ -1949,7 +1960,7 @@
     var box = el('div', 'fh-robot');
     var battery = Math.max(0, Math.min(100, robot.battery | 0));
     var track = el('span', 'fh-track');
-    var head = put(el('div', 'fh-rhead'), icon({ name: 'R' }, 'fh-i56'),
+    var head = put(el('div', 'fh-rhead'),
       put(el('div', 'fh-dname'), el('div', 'fh-big', robot.name), put(el('div', 'fh-bar fh-dim'), text(say('floor', robot.floor)), track, text(say('battery', battery)))),
       robot.on ? badge(say('working'), 'fh-b-green') : badge(say('robotOff'), 'fh-b-red'));
 
@@ -2034,6 +2045,15 @@
     put(ui.body, stock, time);
   }
 
+  // A chip's width as a share of the timeline: about 7 px a letter, twice that for a Chinese character, plus the icon and padding.
+  function chipShare(words) {
+    var px = 44;
+
+    for (var i = 0; i < words.length; i++) px += words.charCodeAt(i) > 0x2e80 ? 13 : 7;
+
+    return Math.max(CHIP_SHARE, px / TIMELINE_PX * 100);
+  }
+
   // What ripens or rots in the next two days on a timeline, each in the first lane it fits in.
   function fillComing(well) {
     var events = [];
@@ -2059,17 +2079,19 @@
 
     events.forEach(function (e) {
       var crop = cropOf(e.pot.plant);
-      var x = at(e.at);
+      var label = e.isRot ? say('rots', crop.name) : crop.name;
+      var share = chipShare(label + ' ' + hours(e.at));
+      var x = Math.min(at(e.at), 100 - share);
       var lane = 0;
 
       while (laneEnds[lane] != null && laneEnds[lane] > x) lane++;
 
-      laneEnds[lane] = x + CHIP_SHARE;
+      laneEnds[lane] = x + share;
 
       var chipNode = put(act(el('div', 'fh-ev' + (e.isRot ? ' fh-rot' : '')), 'pickat', e.pot.id), icon(crop, 'fh-i18'),
-        el('span', '', e.isRot ? say('rots', crop.name) : crop.name), el('span', 'fh-dim', hours(e.at)));
+        el('span', '', label), el('span', 'fh-dim', hours(e.at)));
 
-      chipNode.style.left = Math.min(x, 100 - CHIP_SHARE) + '%';
+      chipNode.style.left = x + '%';
       chipNode.style.top = lane * 34 + 'px';
       lanes.appendChild(chipNode);
     });
@@ -2089,7 +2111,7 @@
   function fillStock(well) {
     var rows = {};
     var ferts = [];
-    var columns = 'minmax(0,1fr) 60px' + cat.caps.map(function () { return ' 72px'; }).join('');
+    var columns = 'minmax(0,1fr) 60px' + cat.caps.map(function () { return ' 88px'; }).join('');
     var head = put(el('div', 'fh-trow fh-thead'), el('span', '', say('colItem')), el('span', 'fh-tc', say('colHave')));
 
     presets().forEach(function (p) {

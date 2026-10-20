@@ -48,6 +48,38 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void A_room_card_names_its_preset_only_when_the_room_header_does_not()
+    {
+        var game = Home();
+        var book = TwoPresets() with
+        {
+            Overrides = new Dictionary<string, IReadOnlyDictionary<long, string>> { [game.SaveKey!] = new Dictionary<long, string> { [2] = "p2" } },
+        };
+        var page = Opened(game, book);
+
+        Assert.Equal("Small Planter", page.Text("panelButton('pick','1').querySelector('.fh-sub').textContent"));
+        Assert.Contains("Preset p2", page.Text("panelButton('pick','2').querySelector('.fh-sub').textContent"));
+
+        page.Click("panelButton('group','crop')");
+
+        Assert.Contains("Preset p1", page.Text("panelButton('pick','1').querySelector('.fh-sub').textContent"));
+    }
+
+    [Fact]
+    public void Forecast_chips_whose_words_would_overlap_go_in_separate_lanes()
+    {
+        var game = new FakeGame
+        {
+            Pots = { P(1, state: PotState.Ripe, plant: Melon, rotIn: 2f), P(2, state: PotState.Growing, plant: Melon, ripeIn: 11f) },
+        };
+        var page = Opened(game);
+
+        ShowTab(page, "forecast");
+
+        Assert.True(page.Is("(function (chips) { return chips.length === 2 && chips[0].style.top !== chips[1].style.top; })(panel().querySelectorAll('.fh-ev'))"));
+    }
+
+    [Fact]
     public void A_refresh_that_only_moves_the_clocks_updates_the_times_without_losing_the_picked_pot()
     {
         var game = Home();

@@ -257,6 +257,7 @@ public class PageScriptTests
 
         Assert.Equal("3", page.Text("hudButton().querySelector('.fh-hud-badge').textContent"));
         Assert.True(page.Is("hudPage().querySelector('.vertical-tools').firstChild === hudButton()"));
+        Assert.Equal("30", page.Text("hudButton().getAttribute('data-etk-dock')"));
 
         page.Click("hudButton()");
 

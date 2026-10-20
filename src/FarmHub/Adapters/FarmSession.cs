@@ -14,7 +14,7 @@ namespace FarmHub.Adapters;
 internal sealed class FarmSession
 {
     private const float OpenRefreshSeconds = 1f;
-    private const float ClosedRefreshSeconds = 3f;
+    private const float ClosedRefreshSeconds = 5f;
     private const float AutoSeconds = 5f;
 
     private readonly IFarmGame _game;
@@ -115,6 +115,7 @@ internal sealed class FarmSession
                 break;
             case PageCommand.Ready:
                 _log("page script ready");
+                _page.ForgetWords();
                 _sentLive = null;
                 _sentBadge = null;
                 _sentCatalog = null;

@@ -20,6 +20,7 @@ internal sealed class GameFarm : IFarmGame
     private const int FertilizerCategory = 11;
     private const int RobotTiers = 3;
     private const float SecondsPerHour = 3600f;
+    private const float SuitabilitySeconds = 30f;
     private const Problems KnownProblems = Problems.Pests | Problems.Weeds | Problems.Dry | Problems.TooDark | Problems.TooBright | Problems.TooCold | Problems.NeedsFeed;
 
     private readonly Action<string> _log;
@@ -28,6 +29,9 @@ internal sealed class GameFarm : IFarmGame
     private IconIndex? _icons;
     private (IntPtr Config, bool IsChinese) _catalogKey;
     private FarmCatalog? _catalog;
+
+    /// <summary>A pot's light and heat change only when the player builds or moves something, so its check is kept a while.</summary>
+    private readonly Dictionary<(long PotId, int KindId), (float At, HashSet<int> Crops)> _unsuitable = new();
 
     public GameFarm(Action<string> log)
     {
@@ -258,8 +262,25 @@ internal sealed class GameFarm : IFarmGame
         }
     }
 
-    /// <summary>The crops this pot's light and temperature cannot grow, by the game's own check.</summary>
+    /// <summary>
+    /// The crops this pot's light and temperature cannot grow, by the game's own check. It asks once per crop, which is
+    /// costly for a home of empty pots, so each pot's answer is reused for half a minute.
+    /// </summary>
     private HashSet<int> Unsuitable(ConfigManager config, FarmCatalog catalog, Furniture furniture)
+    {
+        var key = (furniture.InstanceId, furniture.AgentConfigId);
+        var now = UnityEngine.Time.unscaledTime;
+
+        if (_unsuitable.TryGetValue(key, out var kept) && now - kept.At < SuitabilitySeconds) return kept.Crops;
+
+        var unsuitable = CheckSuitability(config, catalog, furniture);
+
+        _unsuitable[key] = (now, unsuitable);
+
+        return unsuitable;
+    }
+
+    private HashSet<int> CheckSuitability(ConfigManager config, FarmCatalog catalog, Furniture furniture)
     {
         var unsuitable = new HashSet<int>();
 
@@ -398,6 +419,7 @@ internal sealed class GameFarm : IFarmGame
         if (_catalog != null && _catalogKey == key) return _catalog;
 
         _catalog = new FarmCatalog(ReadKinds(config), ReadCrops(config), ReadSeeds(config), ReadFertilizers(config));
+        _unsuitable.Clear();
         _catalogKey = key;
         _log($"read {_catalog.Kinds.Count} pot kinds, {_catalog.Crops.Count} crops, {_catalog.Seeds.Count} seeds, {_catalog.Fertilizers.Count} fertilizers");
 

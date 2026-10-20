@@ -48,7 +48,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.1.1 started`, followed by `hotkeys are blocked while the panel is open`, `clicks go to the panel while it is open` and `listening for panel messages`. A line starting with `could not` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.2.0 started`, followed by `hotkeys are blocked while the panel is open`, `clicks go to the panel while it is open` and `listening for panel messages`. A line starting with `could not` means part of the mod does not work on this game version.
 
 ## Known issues
 

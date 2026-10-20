@@ -6,7 +6,7 @@ Every pot at home in one window: what grows in it, when it is ripe, when it rots
 
 [size=5]Main features[/size]
 [list]
-[*][b]All pots at a glance[/b]: every pot at home, grouped by floor and room, with its crop, time left, time until a ripe crop rots, problems, fertilizer and preset.[/*]
+[*][b]All pots at a glance[/b]: every pot at home, grouped by room, crop or state, with its crop, time left, time until a ripe crop rots, problems, fertilizer and preset. Filter to the ripe, rotting, dry or empty pots, or one crop or room, and do a pot's chore from its card.[/*]
 [*][b]Plant, Fertilize and Tend all[/b]: plants every empty pot from its preset, fertilizes every growing pot that has none, and has the chore each pot needs most done. Each pot can also be handled on its own, and several checked pots together.[/*]
 [*][b]Planting presets with fallbacks[/b]: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back. Fertilizers work the same way.[/*]
 [*][b]Fertilizer per crop[/b]: a crop can have its own fertilizer order, and either fall back to the preset's order or get none when it runs out.[/*]
@@ -62,7 +62,7 @@ Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]g
 
 [size=5]主要功能[/size]
 [list]
-[*][b]花盆一览[/b]：家中所有花盆按楼层和房间分组，显示作物、剩余时间、成熟作物距腐烂的时间、问题、肥料和所用方案。[/*]
+[*][b]花盆一览[/b]：家中所有花盆可按房间、作物或状态分组，显示作物、剩余时间、成熟作物距腐烂的时间、问题、肥料和所用方案。可只看成熟、快腐烂、缺水或空着的花盆，或某种作物、某个房间，并可直接在卡片上处理该花盆的活。[/*]
 [*][b]全部种植、全部施肥、全部照料[/b]：按方案为所有空花盆种植，为所有未施肥的生长中花盆施肥，并为每个花盆完成最需要的照料。也可以单独处理一个花盆，或同时处理勾选的多个花盆。[/*]
 [*][b]带后备的种植方案[/b]：按花盆大小设置有序的种子清单，一种用完就换下一种。每种种子可以保留一定数量。肥料也是一样。[/*]
 [*][b]按作物指定肥料[/b]：每种作物可以有自己的肥料顺序，用完后可选改用方案的肥料顺序或不施肥。[/*]

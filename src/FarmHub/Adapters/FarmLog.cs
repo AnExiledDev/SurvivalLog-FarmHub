@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using BepInEx.Logging;
+using FarmHub.Core;
 
 namespace FarmHub.Adapters;
 
@@ -29,7 +30,8 @@ internal sealed class FarmLog
     {
         try
         {
-            _bepinex.LogInfo(message);
+            if (HookFailure.Is(message)) _bepinex.LogError(message);
+            else _bepinex.LogInfo(message);
         }
         catch (Exception)
         {

@@ -9,6 +9,8 @@
 - Robots are shown side by side. The forecast shows the next 48 hours on a timeline.
 - Cleaner layout: rooms, grouping and sorting sit above the crop list, a card leaves out the preset its room header already names, long seed and fertilizer names no longer clip, and forecast entries no longer overlap.
 
+- After a game update, a hook that can no longer be placed is logged as an error, so the Mod Manager can mark the mod as maybe needing an update.
+
 ## 0.1.1
 
 - With Exiled's Toolkit 0.6.0 or later, the HUD button takes its place in the Toolkit's tidy layout of the tool buttons.

@@ -87,8 +87,26 @@ public class HudPanelTests
         Assert.Contains("Harvest1", plan);
         Assert.Contains("Water1", plan);
         Assert.Contains("Plant empty pots1", plan);
-        // Harvest and water, and the replant's two walks: four chores at 3 stamina each.
+        // Harvest and water, the replant's till and plant, and planting the empty pot: five chores at 3 stamina each.
+        Assert.Contains("5 chores \u00b7 15 of 40 stamina", plan);
+    }
+
+    [Fact]
+    public void Planting_from_the_presets_costs_stamina_only_when_Tend_Garden_does_it()
+    {
+        var plan = Panel(Home(), fromPresets: false).Text("hudPage().querySelector('.fh-plan').textContent");
+
         Assert.Contains("4 chores \u00b7 12 of 40 stamina", plan);
+    }
+
+    [Fact]
+    public void Each_line_of_the_tip_shows_the_crop_its_chore_is_for()
+    {
+        var game = new FakeGame { Pots = { P(2, state: PotState.Ripe, plant: Melon), P(4, state: PotState.Growing, plant: Wheat, problems: Problems.Dry) } };
+        var icons = Panel(game, fromPresets: false).Text("hudPage().querySelector('.fh-plan').querySelectorAll('img').map(function (i) { return i.src || 'none'; }).join(',')");
+
+        // Harvest is for the melon, which has a picture; water is for the wheat, which has none.
+        Assert.Equal("Res/melon.png,none", icons);
     }
 
     [Fact]

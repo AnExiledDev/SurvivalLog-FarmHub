@@ -47,6 +47,7 @@ public static class HudView
             json.WriteNumber("replant", shown.Count(pot => pot.State == PotState.Ripe && !pot.IsPending && pot.RobotId == 0));
             json.WriteNumber("plant", plan.Plant.Values.Count(choice => choice != null));
             json.WriteNumber("fert", plan.Fertilize.Values.Count(fertId => fertId != 0));
+            WriteIcons(json, shown, replants, plan);
 
             var noSeed = FarmRun.FloorFirst(world).Where(pot => plan.Plant.TryGetValue(pot.Id, out var choice) && choice == null).ToList();
 
@@ -133,6 +134,28 @@ public static class HudView
         json.WriteNumber("pests", chores.Count(chore => chore == TendAction.Pests));
         json.WriteNumber("weeds", chores.Count(chore => chore == TendAction.Weeds));
         json.WriteNumber("clean", chores.Count(chore => chore is TendAction.Clear or TendAction.Uproot));
+        json.WriteEndObject();
+    }
+
+    /// <summary>
+    /// What to picture each line of the Tend Garden tip with: the crop of the first pot each chore is for, the pot
+    /// itself for a cleanup, and the first seed or fertilizer the presets would use. 0 is no picture.
+    /// </summary>
+    private static void WriteIcons(Utf8JsonWriter json, IReadOnlyList<Pot> pots, IReadOnlyDictionary<long, int> replants, FarmPlan plan)
+    {
+        var walked = pots.Where(pot => !pot.IsPending && pot.RobotId == 0).ToList();
+
+        int CropFor(TendAction chore) => walked.FirstOrDefault(pot => FarmRun.NeededChore(pot) == chore)?.PlantId ?? 0;
+
+        json.WriteStartObject("icons");
+        json.WriteNumber("harvest", CropFor(TendAction.Harvest));
+        json.WriteNumber("water", CropFor(TendAction.Water));
+        json.WriteNumber("pests", CropFor(TendAction.Pests));
+        json.WriteNumber("weeds", CropFor(TendAction.Weeds));
+        json.WriteNumber("clean", walked.FirstOrDefault(pot => FarmRun.NeededChore(pot) is TendAction.Clear or TendAction.Uproot)?.KindId ?? 0);
+        json.WriteNumber("replant", replants.Values.FirstOrDefault());
+        json.WriteNumber("plant", plan.Plant.Values.FirstOrDefault(choice => choice != null)?.SeedItemId ?? 0);
+        json.WriteNumber("fert", plan.Fertilize.Values.FirstOrDefault(fertId => fertId != 0));
         json.WriteEndObject();
     }
 

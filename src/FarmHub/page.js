@@ -2303,7 +2303,8 @@
     '.fh-more{font-size:9.5px;color:rgba(255,255,255,0.55);padding:2px 4px;cursor:pointer;text-shadow:1px 1px 2px black}',
     '.fh-more:hover{color:#ffd54f}',
     '.fh-plan{margin-top:4px;font-size:11px;color:#ddd}',
-    '.fh-plan-list{margin:4px 0 2px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}',
+    '.fh-plan-list{margin:4px 0 2px;display:grid;grid-template-columns:16px 1fr auto;gap:2px 8px;align-items:center}',
+    '.fh-plan-list img{width:16px;height:16px;object-fit:contain}',
     '.fh-plan-list .fh-n{color:#ffd54f;font-family:Consolas,monospace;text-align:right}',
     '.fh-plan-h{font-size:10px;color:rgba(255,193,7,0.85);letter-spacing:1px;margin-top:6px;text-transform:uppercase}',
     '.fh-plan-foot{margin-top:5px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.12);font-size:10.5px;color:#cfd3d5}',
@@ -2426,15 +2427,18 @@
     return label;
   }
 
-  // The stamina Tend Garden spends: one chore's cost per chore, and two more chores for each pot it replants.
+  // The stamina Tend Garden spends: one chore's cost per chore, two more for each pot it replants (till, then plant),
+  // and with the presets one more for each empty pot it plants and each growing pot it fertilizes.
   function plan(vue) {
     var d = hudData;
     var c = d.chores || {};
     var chores = (c.harvest || 0) + (c.water || 0) + (c.pests || 0) + (c.weeds || 0) + (c.clean || 0);
     var replant = isReplantOn(vue) ? d.replant || 0 : 0;
-    var need = (chores + replant * 2) * (d.cost || 0);
+    var extra = d.fromPresets ? (d.plant || 0) + (d.fert || 0) : 0;
+    var units = chores + replant * 2 + extra;
+    var need = units * (d.cost || 0);
 
-    return { chores: chores, replant: replant, need: need, hasStamina: d.stamina >= 0 && d.cost > 0, isShort: d.stamina >= 0 && d.cost > 0 && need > d.stamina };
+    return { chores: chores, replant: replant, units: units, need: need, hasStamina: d.stamina >= 0 && d.cost > 0, isShort: d.stamina >= 0 && d.cost > 0 && need > d.stamina };
   }
 
   // Our part of the game's Tend Garden tip, after its title and key.
@@ -2460,13 +2464,14 @@
     var c = d.chores || {};
     var p = plan(vue);
     var block = make(doc, 'div', 'fh-plan fh-hudadd', '');
-    var lines = [['tHarvest', c.harvest], ['tWater', c.water], ['tPests', c.pests], ['tWeeds', c.weeds], ['hClean', c.clean]]
+    var ic = d.icons || {};
+    var lines = [['tHarvest', c.harvest, cropOf(ic.harvest)], ['tWater', c.water, cropOf(ic.water)], ['tPests', c.pests, cropOf(ic.pests)], ['tWeeds', c.weeds, cropOf(ic.weeds)], ['hClean', c.clean, kindOf(ic.clean)]]
       .filter(function (l) { return l[1] > 0; });
 
     if (lines.length) block.appendChild(planList(doc, lines));
 
     if (d.fromPresets) {
-      var then = [['hReplant', p.replant], ['hPlantEmpty', d.plant], ['fertilize', d.fert]].filter(function (l) { return l[1] > 0; });
+      var then = [['hReplant', p.replant, seedOf(ic.replant)], ['hPlantEmpty', d.plant, seedOf(ic.plant)], ['fertilize', d.fert, fertOf(ic.fert)]].filter(function (l) { return l[1] > 0; });
 
       if (then.length) {
         block.appendChild(make(doc, 'div', 'fh-plan-h', say('hThenHead')));
@@ -2482,7 +2487,7 @@
 
     var foot = make(doc, 'div', 'fh-plan-foot', '');
 
-    foot.appendChild(boldParts(doc, 'hChores', [p.chores + p.replant * 2]));
+    foot.appendChild(boldParts(doc, 'hChores', [p.units]));
 
     if (p.hasStamina) {
       foot.appendChild(make(doc, 'span', 'fh-sep', ' \u00b7 '));
@@ -2505,6 +2510,7 @@
     var list = make(doc, 'div', 'fh-plan-list', '');
 
     lines.forEach(function (l) {
+      list.appendChild(hudIcon(doc, l[2]));
       list.appendChild(make(doc, 'span', '', say(l[0])));
       list.appendChild(make(doc, 'span', 'fh-n', String(l[1])));
     });

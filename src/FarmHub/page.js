@@ -540,7 +540,7 @@
     root.id = 'fh-root';
     toast.id = 'fh-toast';
     title.appendChild(sum);
-    put(head, put(el('div', 'fh-logo'), sprout(document)), title, tabs, plainButton('fh-x', '×', 'close', null, true));
+    put(head, put(el('div', 'fh-logo'), sprout(document)), title, tabs, plainButton('fh-x', '\u00d7', 'close', null, true));
     put(foot, status, keys, esc);
     put(win, head, body, foot);
     root.appendChild(win);
@@ -870,8 +870,8 @@
 
     ui.sum.appendChild(text(say('sumPots', c.total)));
 
-    if (need) put(ui.sum, text(' · '), sayCount('cNeed', need, ''));
-    if (c.empty) put(ui.sum, text(' · ' + say('cEmpty', c.empty)));
+    if (need) put(ui.sum, text(' \u00b7 '), sayCount('cNeed', need, ''));
+    if (c.empty) put(ui.sum, text(' \u00b7 ' + say('cEmpty', c.empty)));
   }
 
   function renderTabs() {
@@ -890,7 +890,7 @@
   function renderKeys() {
     ui.keys.textContent = '';
 
-    if (state.key !== GAME_TEND_KEY) put(ui.keys, el('span', 'fh-kbd', GAME_TEND_KEY), text(say('keyTend')), state.key ? text(' · ') : null);
+    if (state.key !== GAME_TEND_KEY) put(ui.keys, el('span', 'fh-kbd', GAME_TEND_KEY), text(say('keyTend')), state.key ? text(' \u00b7 ') : null);
     if (state.key) put(ui.keys, el('span', 'fh-kbd', state.key), text(say('keyThis')));
 
     ui.esc.textContent = say('escClose');
@@ -989,7 +989,7 @@
   function groupHead(group) {
     var pot = group.first;
     var preset = presetById(pot.preset);
-    var where = say('floor', pot.floor) + (pot.floor === state.data.floor ? ' (' + say('here') + ')' : '') + ' · ' + (group.pots.length === 1 ? say('onePot') : say('nPots', group.pots.length));
+    var where = say('floor', pot.floor) + (pot.floor === state.data.floor ? ' (' + say('here') + ')' : '') + ' \u00b7 ' + (group.pots.length === 1 ? say('onePot') : say('nPots', group.pots.length));
     var presetChip = preset ? chip(preset.name, 'editpreset', preset.id, false) : null;
 
     if (presetChip) setClass(presetChip, 'fh-r', true);
@@ -1082,7 +1082,7 @@
   }
 
   function roomTitle(pot) {
-    return (pot.room || say('otherRoom')) + ' · ' + say('floor', pot.floor);
+    return (pot.room || say('otherRoom')) + ' \u00b7 ' + say('floor', pot.floor);
   }
 
   // The right side: a picked pot's detail, else what needs the player.
@@ -1166,9 +1166,9 @@
     var scroll = scroller('detail', 'fh-grow');
     var subs = el('div', 'fh-subacts');
 
-    put(scroll, button('‹ ' + say('backNeeds'), 'back', null, true, 'fh-ghost fh-sm'),
+    put(scroll, button('\u2039 ' + say('backNeeds'), 'back', null, true, 'fh-ghost fh-sm'),
       put(el('div', 'fh-det-hd'), icon(crop || kind, 'fh-i56'),
-        put(el('div', 'fh-mid'), el('div', 'fh-nm', crop ? crop.name : say('stEmpty')), el('div', 'fh-wh', kind.name + ' · ' + roomTitle(pot))), statePill(pot)));
+        put(el('div', 'fh-mid'), el('div', 'fh-nm', crop ? crop.name : say('stEmpty')), el('div', 'fh-wh', kind.name + ' \u00b7 ' + roomTitle(pot))), statePill(pot)));
 
     if (pot.state === 'growing') {
       scroll.appendChild(put(el('div', 'fh-tl'), progressBar(pot, true), put(el('div', 'fh-tl-lab'),

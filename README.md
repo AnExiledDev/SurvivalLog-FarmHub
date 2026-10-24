@@ -9,6 +9,8 @@ Press `Shift+G`, or the plant button in the tool column on the left of the scree
 - **All pots at a glance**: every pot at home, grouped by room with your floor marked, with its crop, growth and time left, time until a ripe crop rots, problems (pests, weeds, dry, light, cold) and the preset it follows. Show only the pots that need you, the empty ones or the growing ones, or search by crop or room.
 - **What needs you**: with no pot picked, the right side counts the harvests, care, bad spots, empty pots and fertilizer waiting, and lists what ripens or rots in the next 48 hours.
 - **Tend all, Plant and Fertilize**: Tend all sends the game's own Tend Garden (harvest, clear, weed, water), then plants every empty pot from its preset and fertilizes every growing pot that has none. Plant and Fertilize do just their part. Each pot can also be handled on its own.
+- **More in the game's plant list**: the plant list in the HUD shows each pot's room and what it needs, the empty pots with the seed they would get (click one to plant it), and a Needs you / All switch. The Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take.
+- **Tend Garden from your presets**: with the game's Replant box on, Tend Garden replants a harvested pot from its preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones. Turn it off with the "from presets" box next to Replant.
 - **Planting presets with fallbacks**: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back (keep at least 4 wheat seeds, say). Then an ordered list of fertilizers, the same way.
 - **Fertilizer per crop**: a crop can have its own fertilizer order (watermelon always gets the best one). When its list runs out it either uses the preset's order or gets none, your choice per crop.
 - **Skip crops a pot cannot grow**: a crop the pot's light or temperature cannot grow is passed over for the next seed.
@@ -43,13 +45,13 @@ Delete `FarmHub.dll` from the `BepInEx\plugins` folder. For a clean slate, also 
 
 ## Configuration
 
-Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. The window opens with Shift+G by default; set `PanelKeyShift` to `false` to open it with G alone. The rot warning and the robot switch can also be set in the window. See [CONFIG.md](CONFIG.md) for every setting.
+Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. The window opens with Shift+G by default; set `PanelKeyShift` to `false` to open it with G alone. The rot warning and the robot switch can also be set in the window, and `TendFromPresets` with the "from presets" box in the HUD's plant list. See [CONFIG.md](CONFIG.md) for every setting.
 
 ## Troubleshooting
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.3.0 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open` and `listening for panel messages`. A line starting with `could not` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.0 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
 
 ## Known issues
 

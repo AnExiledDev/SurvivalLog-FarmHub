@@ -58,6 +58,8 @@ internal sealed class PageScript
 
     public void Badge(int count) => Call($"badge({count})");
 
+    public void Hud(string hudJson) => Call($"hud({hudJson})");
+
     public void Close() => Call("close()");
 
     public void Status(string text) => Call($"status({JsText.Literal(text)})");

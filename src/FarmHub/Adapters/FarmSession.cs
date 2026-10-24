@@ -14,8 +14,10 @@ namespace FarmHub.Adapters;
 internal sealed class FarmSession
 {
     private const float OpenRefreshSeconds = 1f;
-    private const float ClosedRefreshSeconds = 5f;
+    private const float ClosedRefreshSeconds = 2f;
     private const float AutoSeconds = 5f;
+    private const float SowRetrySeconds = 0.5f;
+    private const int SowTries = 6;
 
     private readonly IFarmGame _game;
     private readonly WebPage _page;
@@ -23,14 +25,17 @@ internal sealed class FarmSession
     private readonly PresetFileOnDisk _file;
     private readonly Action<int> _saveRotWarn;
     private readonly Action<bool> _saveRobots;
+    private readonly Action<bool> _saveFromPresets;
     private readonly Action<string> _log;
     private readonly Dictionary<long, float> _retryAt = new();
+    private readonly Dictionary<long, int> _sowTries = new();
 
     private PresetBook? _book;
     private KeyCode _panelKey;
     private bool _isPanelKeyShifted;
     private int _rotWarnHours = 12;
     private bool _isKeepingRobotsStocked;
+    private bool _isTendFromPresets;
 
     private bool _isOpen;
     private string _shownView = "";
@@ -39,28 +44,35 @@ internal sealed class FarmSession
     private bool? _sentLive;
     private float _nextRefreshAt;
     private float _nextAutoAt;
+    private float _nextSowAt;
+    private string _sentHud = "";
     private FarmWorld? _lastWorld;
 
-    public FarmSession(IFarmGame game, WebPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<string> log)
+    public FarmSession(IFarmGame game, WebPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
     {
         _game = game;
         _page = page;
         _file = file;
         _saveRotWarn = saveRotWarn;
         _saveRobots = saveRobots;
+        _saveFromPresets = saveFromPresets;
         _log = log;
+        TendHooks.CanSow = CanSow;
     }
 
     private static bool IsChinese => GameLanguage.IsChinese();
 
     /// <summary>Called on the main thread at start and after each settings change; the page hears them at the next refresh.</summary>
-    public void UseSettings(KeyCode panelKey, bool isPanelKeyShifted, int rotWarnHours, bool isKeepingRobotsStocked)
+    public void UseSettings(KeyCode panelKey, bool isPanelKeyShifted, int rotWarnHours, bool isKeepingRobotsStocked, bool isTendFromPresets)
     {
         _panelKey = panelKey;
         _isPanelKeyShifted = isPanelKeyShifted;
         InputGate.UsePanelKey(panelKey, isPanelKeyShifted);
         _rotWarnHours = rotWarnHours;
         _isKeepingRobotsStocked = isKeepingRobotsStocked;
+        _isTendFromPresets = isTendFromPresets;
+        TendHooks.IsOn = isTendFromPresets;
+        _sentHud = "";
         _sentLive = null;
         _sentBadge = null;
         _shownView = "";
@@ -73,6 +85,8 @@ internal sealed class FarmSession
         _page.KeepInstalled(now);
 
         while (PageMessages.TryTake(out var command)) HandleSafely(command);
+
+        TakeTendHooks(now);
 
         if (!_keyboard.IsClaimed && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
         {
@@ -122,6 +136,7 @@ internal sealed class FarmSession
                 _sentLive = null;
                 _sentBadge = null;
                 _sentCatalog = null;
+                _sentHud = "";
                 _shownView = "";
                 _nextRefreshAt = 0f;
                 break;
@@ -168,6 +183,13 @@ internal sealed class FarmSession
                 _isKeepingRobotsStocked = robots.IsKeepingStocked;
                 _saveRobots(robots.IsKeepingStocked);
                 Say((robots.IsKeepingStocked ? Texts.RobotsOn : Texts.RobotsOff).Pick(IsChinese));
+                break;
+            case PageCommand.FromPresets fromPresets:
+                _isTendFromPresets = fromPresets.IsOn;
+                TendHooks.IsOn = fromPresets.IsOn;
+                _saveFromPresets(fromPresets.IsOn);
+                Say((fromPresets.IsOn ? Texts.FromPresetsOn : Texts.FromPresetsOff).Pick(IsChinese));
+                SendHud(_lastWorld);
                 break;
             default:
                 throw new InvalidOperationException("unhandled page command " + command);
@@ -231,6 +253,7 @@ internal sealed class FarmSession
         _lastWorld = world;
         SendLive(world != null);
         SendBadge(world == null ? 0 : FarmView.NeedsYou(world, Book()));
+        SendHud(world);
 
         if (_isOpen) Show(read, isOpening: false);
     }
@@ -241,6 +264,73 @@ internal sealed class FarmSession
         if (_page.Live(isLive, KeyName())) _sentLive = isLive;
 
         _log($"HUD button {(isLive ? "shown" : "hidden")}");
+    }
+
+    /// <summary>The plant panel's additions need the catalog to name seeds, so it goes too, once per game and language.</summary>
+    private void SendHud(FarmWorld? world)
+    {
+        if (world != null) SendCatalog(world.Catalog);
+
+        var hud = world == null ? HudView.NotReady() : HudView.Ready(world, Book(), _rotWarnHours, _isTendFromPresets);
+
+        if (hud == _sentHud) return;
+        if (_page.Hud(hud)) _sentHud = hud;
+    }
+
+    /// <summary>A replant walk's pot, sown from its preset when the walk is done with it, and the extras after the game's Tend Garden.</summary>
+    private void TakeTendHooks(float now)
+    {
+        foreach (var potId in TendHooks.TakeSows())
+        {
+            _sowTries[potId] = 0;
+            _nextSowAt = now;
+        }
+
+        if (TendHooks.TakePatrol())
+        {
+            var outcome = FarmRun.FromPresets(_game, Book());
+
+            _log($"tend from presets: {outcome}");
+
+            if (FarmMessages.IsWorthShowing(outcome)) Say(FarmMessages.Describe(outcome, IsChinese));
+        }
+
+        if (_sowTries.Count > 0 && now >= _nextSowAt) SowQueued(now);
+    }
+
+    /// <summary>The walk that reached the pot still holds it for a moment, so a pot the game calls busy is tried again shortly.</summary>
+    private void SowQueued(float now)
+    {
+        _nextSowAt = now + SowRetrySeconds;
+
+        foreach (var potId in _sowTries.Keys.ToList())
+        {
+            var outcome = FarmRun.Plant(_game, Book(), new[] { potId });
+            var tries = _sowTries[potId] + 1;
+
+            if (outcome is FarmOutcome.NotEmpty && tries < SowTries)
+            {
+                _sowTries[potId] = tries;
+                continue;
+            }
+
+            _sowTries.Remove(potId);
+            _log($"replant {potId} from its preset after {tries} tries: {outcome}");
+            Say(FarmMessages.Describe(outcome, IsChinese));
+        }
+    }
+
+    /// <summary>Tend Garden's replant walk skips the game's plant screen only for a pot its preset has a seed for.</summary>
+    private bool CanSow(long potId)
+    {
+        var world = _lastWorld;
+        var pot = world?.Pots.FirstOrDefault(found => found.Id == potId);
+
+        if (world == null || pot == null || !world.Catalog.Kinds.TryGetValue(pot.KindId, out var kind)) return false;
+
+        var preset = Book().PresetFor(world.SaveKey, pot);
+
+        return preset != null && Picks.Seed(pot, kind, preset, world, new Dictionary<int, int>()) != null;
     }
 
     private void SendBadge(int count)

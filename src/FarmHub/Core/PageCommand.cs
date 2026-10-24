@@ -48,6 +48,9 @@ public abstract record PageCommand
 
     public sealed record Robots(bool IsKeepingStocked) : PageCommand;
 
+    /// <summary>The plant panel's "from presets" box: Tend Garden also replants, plants and fertilizes from the presets.</summary>
+    public sealed record FromPresets(bool IsOn) : PageCommand;
+
     /// <summary>One of a robot's three sow settings: a seed and a fertilizer, each 0 for none.</summary>
     public sealed record RobotTier(long RobotId, int Tier, int SeedId, int FertId) : PageCommand;
 
@@ -83,6 +86,7 @@ public abstract record PageCommand
             ("deletepreset", 2) when parts[1].Length > 0 => new DeletePreset(parts[1]),
             ("rotwarn", 2) when int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var hours) && hours is >= 1 and <= 96 => new RotWarn(hours),
             ("robots", 2) when parts[1] is "0" or "1" => new Robots(parts[1] == "1"),
+            ("frompresets", 2) when parts[1] is "0" or "1" => new FromPresets(parts[1] == "1"),
             ("robottier", 5) when TryId(parts[1], out var robotId) && TryCount(parts[2], out var tier) && tier <= 2 && TryCount(parts[3], out var seedId) && TryCount(parts[4], out var fertId)
                 => new RobotTier(robotId, tier, seedId, fertId),
             _ => null,

@@ -17,6 +17,8 @@ public class PageCommandTests
         Assert.Equal(new PageCommand.Tend(-12), Parse("tend|-12"));
         Assert.Equal(new PageCommand.RotWarn(24), Parse("rotwarn|24"));
         Assert.Equal(new PageCommand.Robots(true), Parse("robots|1"));
+        Assert.Equal(new PageCommand.FromPresets(false), Parse("frompresets|0"));
+        Assert.Null(Parse("frompresets|yes"));
         Assert.Equal(new PageCommand.RobotTier(7, 2, 200, 0), Parse("robottier|7|2|200|0"));
         Assert.Equal(new PageCommand.DeletePreset("p2"), Parse("deletepreset|p2"));
     }

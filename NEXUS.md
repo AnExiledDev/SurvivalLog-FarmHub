@@ -1,5 +1,5 @@
 Name: Farm Hub
-Summary: Every pot at home in one window, grouped by room: what needs you, what ripens or rots in the next 48 hours, and Tend all, which runs the game's Tend Garden and then plants and fertilizes from your presets. Presets set seed and fertilizer fallbacks per pot size, per crop, room or floor, and keep your planter robots sowing when a seed runs out.
+Summary: Every pot at home in one window, plus more in the game's plant list: empty pots, what each pot needs, and the next Tend Garden's chores and stamina. Tend Garden can replant, plant and fertilize from your presets. Presets set seed and fertilizer fallbacks per pot size, per crop, room or floor, and keep your planter robots sowing when a seed runs out.
 
 Description (BBCode):
 Every pot at home in one window: what grows in it, when it is ripe, when it rots, what it needs and what it gets planted with next. Press [font=Courier New]Shift+G[/font], or the plant button in the tool column on the left of the screen, to open it. The button shows how many pots have a chore waiting or could be planted now.
@@ -9,6 +9,8 @@ Every pot at home in one window: what grows in it, when it is ripe, when it rots
 [*][b]All pots at a glance[/b]: every pot at home, grouped by room with your floor marked, with its crop, time left, time until a ripe crop rots, problems and preset. Show only the pots that need you, the empty ones or the growing ones, or search by crop or room.[/*]
 [*][b]What needs you[/b]: the harvests, care, bad spots, empty pots and fertilizer waiting, and what ripens or rots in the next 48 hours.[/*]
 [*][b]Tend all[/b]: sends the game's own Tend Garden (harvest, clear, weed, water), then plants every empty pot from its preset and fertilizes every growing pot that has none. Plant and Fertilize do just their part, and each pot can be handled on its own.[/*]
+[*][b]More in the game's plant list[/b]: the plant list in the HUD shows each pot's room and what it needs, the empty pots with the seed they would get (click one to plant it), and a Needs you / All switch. The Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take.[/*]
+[*][b]Tend Garden from your presets[/b]: with the game's Replant box on, Tend Garden replants a harvested pot from its preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones. Turn it off with the "from presets" box next to Replant.[/*]
 [*][b]Planting presets with fallbacks[/b]: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back. Fertilizers work the same way.[/*]
 [*][b]Fertilizer per crop[/b]: a crop can have its own fertilizer order, and either fall back to the preset's order or get none when it runs out.[/*]
 [*][b]Skip crops a pot cannot grow[/b]: a crop the pot's light or temperature cannot grow is passed over for the next seed.[/*]
@@ -67,6 +69,8 @@ Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]g
 [*][b]花盆一览[/b]：家中所有花盆按房间分组，并标出你所在的楼层，显示作物、剩余时间、成熟作物距腐烂的时间、问题和所用方案。可只看需要你处理、空着或生长中的花盆，也可按作物或房间搜索。[/*]
 [*][b]需要你处理[/b]：待收获、待照料、位置不佳、空着和待施肥的花盆，以及未来 48 小时内会成熟或腐烂的作物。[/*]
 [*][b]全部照料[/b]：先触发游戏自带的「巡园」（收获、清理、除草、浇水），再按方案为所有空花盆种植，为所有未施肥的生长中花盆施肥。「种植」和「施肥」只做各自的部分，也可以单独处理一个花盆。[/*]
+[*][b]游戏植物列表中的更多信息[/b]：HUD 中的植物列表会显示每个花盆所在的房间和需要什么，列出空花盆及将要种下的种子（点击即可种植），并可在「需要你处理」和「全部」之间切换。「巡园」的提示会列出下次巡园要做的事和所需体力。[/*]
+[*][b]按方案巡园[/b]：勾选游戏的「补种」后，「巡园」收获后会按方案直接补种，而不是打开种植界面，然后为空花盆种植、为生长中的花盆施肥。可用「补种」旁的「按预设」关闭。[/*]
 [*][b]带后备的种植方案[/b]：按花盆大小设置有序的种子清单，一种用完就换下一种。每种种子可以保留一定数量。肥料也是一样。[/*]
 [*][b]按作物指定肥料[/b]：每种作物可以有自己的肥料顺序，用完后可选改用方案的肥料顺序或不施肥。[/*]
 [*][b]跳过种不了的作物[/b]：花盆的光照或温度种不了的作物会被跳过，改用下一种种子。[/*]

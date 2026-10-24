@@ -310,3 +310,72 @@ function click(target) {
     (node.listeners.click || []).slice().forEach(function (listener) { listener(event); });
   }
 }
+
+// The game's plant panel in the HUD (CoreUI1.html 2296-2400), opened: the toggle row with Tend Garden and its tip, the
+// Replant box unless hasReplant is false, and one row per plant in the order its Vue state lists them. rows are
+// [showInstanceId, status class] pairs; the Vue state sits where the page script reads it.
+function openPlantPanel(rows, isReplantOn, hasReplant) {
+  var doc = hudPage();
+  var app = doc.getElementById('app') || doc.body.appendChild(new FakeElement('div'));
+  var panel = new FakeElement('div');
+  var toggle = new FakeElement('div');
+  var patrol = new FakeElement('button');
+  var tip = new FakeElement('div');
+  var title = new FakeElement('div');
+  var chevron = new FakeElement('svg');
+  var list = new FakeElement('div');
+
+  app.id = 'app';
+  app._vnode = { component: { setupState: { state: { maturePlants: rows.map(function (r) { return { showInstanceId: r[0] }; }), matureReplantOn: !!isReplantOn } } } };
+  panel.className = 'mature-panel';
+  toggle.className = 'mature-toggle-row is-expanded';
+  patrol.id = 'maturePatrolBtn';
+  patrol.className = 'mature-patrol-btn has-entry-tip';
+  tip.className = 'entry-tip';
+  title.className = 'entry-tip-title';
+  title.textContent = 'Tend Garden';
+  tip.appendChild(title);
+  patrol.appendChild(tip);
+  toggle.appendChild(patrol);
+
+  if (hasReplant !== false) {
+    var replant = new FakeElement('label');
+
+    replant.id = 'matureReplantChk';
+    replant.className = 'mature-replant-chk';
+    replant.appendChild(new FakeElement('input'));
+    toggle.appendChild(replant);
+  }
+
+  chevron.className = 'mature-toggle-chevron';
+  toggle.appendChild(chevron);
+  list.className = 'mature-popover';
+  rows.forEach(function (r) {
+    var row = new FakeElement('div');
+    var name = new FakeElement('span');
+
+    row.className = 'mature-item-row ' + r[1];
+    name.className = 'mature-item-name';
+    name.textContent = 'plant ' + r[0];
+    row.appendChild(new FakeElement('img'));
+    row.appendChild(name);
+    list.appendChild(row);
+  });
+  panel.appendChild(toggle);
+  panel.appendChild(list);
+  app.appendChild(panel);
+
+  return panel;
+}
+
+// The game's own plant rows, ours left out.
+function gameRowsNow() {
+  return hudPage().querySelectorAll('.mature-item-row').filter(function (n) { return !n.classList.contains('fh-hudadd'); });
+}
+
+// What a row's second line says.
+function rowSub(i) {
+  var sub = gameRowsNow()[i].querySelectorAll('.fh-sub')[0];
+
+  return sub ? sub.textContent : '';
+}

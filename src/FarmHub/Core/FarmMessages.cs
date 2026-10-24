@@ -26,11 +26,17 @@ public static class FarmMessages
         FarmOutcome.RobotGone => Texts.RobotGone.Pick(isChinese),
         FarmOutcome.RobotTierSet set => Texts.RobotTierSet.Say(isChinese, set.Robot),
         FarmOutcome.AutoDone done => Auto(done, isChinese),
+        FarmOutcome.FromPresets presets => FromPresets(presets, isChinese),
         _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "unknown farm outcome"),
     };
 
     /// <summary>Whether the auto pass has anything worth telling the player: only pots it planted or robots it switched.</summary>
-    public static bool IsWorthShowing(FarmOutcome outcome) => outcome is FarmOutcome.AutoDone done && (done.PlantedCount > 0 || done.RobotTiers > 0);
+    public static bool IsWorthShowing(FarmOutcome outcome) => outcome switch
+    {
+        FarmOutcome.AutoDone done => done.PlantedCount > 0 || done.RobotTiers > 0,
+        FarmOutcome.FromPresets presets => presets.PlantedCount > 0 || presets.FertilizedCount > 0,
+        _ => false,
+    };
 
     private static string Batch(Counted done, int count, Phrase shortfall, int shortCount, int refusedCount, bool isChinese)
     {
@@ -48,6 +54,16 @@ public static class FarmMessages
 
         if (all.PlantedCount > 0) parts.Add(Texts.Planted.Say(isChinese, all.PlantedCount));
         if (all.FertilizedCount > 0) parts.Add(Texts.Fertilizing.Say(isChinese, all.FertilizedCount));
+
+        return string.Join(" ", parts);
+    }
+
+    private static string FromPresets(FarmOutcome.FromPresets presets, bool isChinese)
+    {
+        var parts = new List<string> { Texts.FromPresetsDone.Pick(isChinese) };
+
+        if (presets.PlantedCount > 0) parts.Add(Texts.Planted.Say(isChinese, presets.PlantedCount));
+        if (presets.FertilizedCount > 0) parts.Add(Texts.Fertilizing.Say(isChinese, presets.FertilizedCount));
 
         return string.Join(" ", parts);
     }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- The game's plant list in the HUD shows more: each pot's room and what it needs (rots in how long, what it gets replanted with, or the chore or fertilizer it waits for), the empty pots with the seed they would get (click one to plant it), a Needs you / All switch that folds away most of the growing pots, and a link to the Farm Hub window.
+- The game's Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take, and warns when your stamina is short or a preset has no seed left.
+- Tend Garden can work from your presets: with the game's Replant box on, a harvested pot is replanted from its preset instead of opening the plant screen, and after each Tend Garden the empty pots are planted and the growing ones fertilized from their presets. Turn it on or off with the new "from presets" box next to Replant, or the new TendFromPresets setting (on by default). A pot whose preset has no seed left opens the plant screen as before.
+- The HUD button's count and the window refresh every 2 seconds while the window is closed, so the plant list stays current.
+
 ## 0.3.0
 
 - New window layout, in the style of the other hubs. The pot list is grouped by room, with your floor marked and each room's preset named in its header. Show only the pots that need you, the empty ones or the growing ones, or search by crop, room or pot.

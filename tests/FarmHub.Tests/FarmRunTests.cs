@@ -158,6 +158,33 @@ public class FarmRunTests
     }
 
     [Fact]
+    public void After_the_games_Tend_Garden_the_empty_pots_are_planted_and_the_growing_ones_fed_without_tending_again()
+    {
+        var game = new FakeGame { Stock = { [WheatSeed] = 2, [Basic] = 4 } };
+
+        game.Pots.AddRange(new[] { P(1), P(2, state: PotState.Growing, plant: Wheat), P(3, state: PotState.Ripe, plant: Wheat) });
+
+        var outcome = FarmRun.FromPresets(game, WheatEverywhere());
+
+        Assert.Equal(0, game.TendAllCount);
+        Assert.Empty(game.Tended);
+        Assert.Equal(new long[] { 1 }, game.Planted.Select(p => p.PotId));
+        Assert.Equal(new long[] { 2 }, game.Fertilized.Select(p => p.PotId));
+        Assert.True(FarmMessages.IsWorthShowing(outcome));
+        Assert.Equal("Tend Garden, from your presets: Planting 1 pot. Fertilizing 1 pot.", Say(outcome));
+    }
+
+    [Fact]
+    public void A_Tend_Garden_with_nothing_to_plant_or_feed_says_nothing()
+    {
+        var game = new FakeGame();
+
+        game.Pots.Add(P(1, state: PotState.Ripe, plant: Wheat));
+
+        Assert.False(FarmMessages.IsWorthShowing(FarmRun.FromPresets(game, WheatEverywhere())));
+    }
+
+    [Fact]
     public void Away_from_home_nothing_is_asked_of_the_game()
     {
         var game = new FakeGame { ReadInstead = new FarmRead.NotReady("you are away from home") };

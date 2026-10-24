@@ -104,6 +104,15 @@ public sealed record FarmWorld(
     int PlayerFloor,
     string? SaveKey)
 {
+    /// <summary>The player's stamina, null when it could not be read.</summary>
+    public float? Stamina { get; init; }
+
+    /// <summary>The stamina one plant chore costs (GlobalSetting_PlantActionCost), 0 when unknown.</summary>
+    public int ChoreCost { get; init; }
+
+    /// <summary>Each pot's id in the game's HUD, which lists pots by their shown model, by the pot's own id.</summary>
+    public IReadOnlyDictionary<long, long> ShowIds { get; init; } = new Dictionary<long, long>();
+
     public int Own(int itemId) => Owned.TryGetValue(itemId, out var count) ? count : 0;
 
     public string AreaName(int area) => AreaNames.TryGetValue(area, out var name) ? name : "";

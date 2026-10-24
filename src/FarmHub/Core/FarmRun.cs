@@ -41,6 +41,9 @@ public abstract record FarmOutcome
 
     public sealed record NothingToTend(string Pot) : FarmOutcome;
 
+    /// <summary>After the game's own Tend Garden: the empty pots planted and growing pots fertilized from presets.</summary>
+    public sealed record FromPresets(int PlantedCount, int FertilizedCount) : FarmOutcome;
+
     public sealed record Refused(string Pot) : FarmOutcome;
 
     public sealed record RobotGone : FarmOutcome;
@@ -111,6 +114,15 @@ public static class FarmRun
         var fertilized = Fertilize(game, book, null);
 
         return new FarmOutcome.TendedAll(isTending, planted is FarmOutcome.Planted done ? done.Count : 0, fertilized is FarmOutcome.Fertilizing fed ? fed.Count : 0);
+    });
+
+    /// <summary>What Tend Garden adds when the player sent it from the game: the empty pots planted and the growing pots fertilized from their presets.</summary>
+    public static FarmOutcome FromPresets(IFarmGame game, PresetBook book) => WithWorld(game, world =>
+    {
+        var planted = PlantWhere(game, book, world, _ => true);
+        var fertilized = Fertilize(game, book, null);
+
+        return new FarmOutcome.FromPresets(planted is FarmOutcome.Planted done ? done.Count : 0, fertilized is FarmOutcome.Fertilizing fed ? fed.Count : 0);
     });
 
     /// <summary>Sets one of a robot's sow settings. A seed whose crop does not fit that pot size is refused before the game sees it.</summary>

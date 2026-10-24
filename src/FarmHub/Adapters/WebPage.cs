@@ -62,6 +62,9 @@ internal sealed class WebPage
     /// <summary>Names, icons, crops, seeds, fertilizers and pot kinds; the views refer to them by id only.</summary>
     public bool Catalog(string catalogJson) => Call($"catalog({catalogJson})");
 
+    /// <summary>The additions to the game's plant panel (HudView), sent whether or not the window is open.</summary>
+    public bool Hud(string hudJson) => Call($"hud({hudJson})");
+
     /// <summary>The count badge on the HUD button, sent whether or not the window is open.</summary>
     public bool Badge(int count) => Call($"badge({count})");
 

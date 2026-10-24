@@ -80,6 +80,9 @@ public static class Texts
     public static readonly Phrase NotSaved = new("farm-hub.json could not be written, so the change lasts until the game is closed. See " + Log + ".", "无法写入 farm-hub.json，更改只在关闭游戏前有效。详见 " + Log + "。");
     public static readonly Phrase RotWarnSet = new("Rotting soon now means within {0} h.", "「快腐烂」现在表示 {0} 小时内。");
     public static readonly Phrase RobotsOn = new("Robots will be kept stocked.", "将保持机器人补给。");
+    public static readonly Phrase FromPresetsOn = new("Tend Garden will also replant, plant and fertilize from your presets.", "「巡园」也会按你的预设补种、种植和追肥。");
+    public static readonly Phrase FromPresetsOff = new("Tend Garden works as in the game again.", "「巡园」恢复为游戏原本的效果。");
+    public static readonly Phrase FromPresetsDone = new("Tend Garden, from your presets:", "「巡园」，按你的预设：");
     public static readonly Phrase RobotsOff = new("Robots will no longer be switched to other seeds.", "不再为机器人更换种子。");
 
     public static Phrase ChoreName(TendAction action) => action switch
@@ -276,5 +279,31 @@ public static class Texts
         ("otherHead", new("Other", "其他")),
         ("gTwice", new("G opens this window and also runs the game's Tend Garden. Set PanelKeyShift to true to open it with Shift+G instead.", "G 会打开此窗口，同时也会触发游戏的「巡园」。将 PanelKeyShift 设为 true 后改用 Shift+G 打开。")),
         ("tip", new("Your pots: ripe crops, problems and planting", "你的种植盆：成熟作物、问题和种植")),
+        ("fromPresets", new("from presets", "按预设")),
+        ("hNextTend", new("Next Tend:", "下次巡园：")),
+        ("hChores", new("{0} chores", "{0} 项")),
+        ("hStamina", new("{0} of {1} stamina", "体力 {0}/{1}")),
+        ("hThen", new("then plant {0}, fertilize {1}", "然后种植 {0}、追肥 {1}")),
+        ("hShow", new("Show", "显示")),
+        ("hNeeds", new("Needs you ({0})", "需要你处理（{0}）")),
+        ("hAll", new("All ({0})", "全部（{0}）")),
+        ("hMore", new("+ {0} more growing", "还有 {0} 株生长中")),
+        ("hEmptyHead", new("Empty pots: plant from your presets", "空盆 \u00b7 按你的预设种植")),
+        ("hGrowingHead", new("Growing: next ready", "生长中 \u00b7 即将成熟")),
+        ("hEmptyPot", new("Empty pot", "空盆")),
+        ("hPlantSeed", new("plant {0}", "种植{0}")),
+        ("hNoSeed", new("no seed", "没有种子")),
+        ("hSeeds", new("{0} seeds", "{0} 颗种子")),
+        ("hRotsIn", new("rots in {0}", "{0}后腐烂")),
+        ("hThenCrop", new("then", "然后")),
+        ("hClean", new("Clean up", "清理")),
+        ("hNeedsFert", new("needs fertilizer", "需要追肥")),
+        ("hThenHead", new("Then, from your presets", "然后，按你的预设")),
+        ("hReplant", new("Replant", "补种")),
+        ("hPlantEmpty", new("Plant empty pots", "种植空盆")),
+        ("hShort", new("Not enough stamina for all of it; the rest waits.", "体力不足，其余的会等待。")),
+        ("hNoSeedFor", new("No seed left for {0}", "{0}没有可用的种子")),
+        ("hNoSeedMore", new("No seed left for {0} and {1} more", "{0}等 {1} 个种植盆没有可用的种子")),
+        ("hIdle", new("Nothing to tend right now.", "现在没有需要照料的。")),
     };
 }

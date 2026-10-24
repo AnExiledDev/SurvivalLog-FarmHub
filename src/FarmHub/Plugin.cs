@@ -13,7 +13,7 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.3.0";
+    private const string Version = "0.4.0";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()
@@ -30,6 +30,9 @@ public sealed class Plugin : BasePlugin
             "A ripe crop that will rot within this many hours is flagged as rotting soon, on the HUD button and in the window.\n" +
             "成熟作物在这么多小时内会腐烂时，会在 HUD 按钮和窗口中标记为「快腐烂」。",
             new AcceptableValueRange<int>(1, 96)));
+        var isTendFromPresets = Config.Bind("General", "TendFromPresets", true,
+            "When true, the game's Tend Garden (G, or the plant button in the HUD) replants each harvested pot from its planting preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones from their presets. Replanting needs the game's Replant box on. A pot whose preset has no seed left opens the plant screen as usual. The \"from presets\" box in the HUD's plant panel sets this too.\n" +
+            "设为 true 时，游戏的「巡园」（G 键或 HUD 中的植物按钮）收获后会按种植预设直接补种，而不是打开种植界面，然后按预设种植空盆、为生长中的作物追肥。补种需要勾选游戏的「补种」。预设中没有可用种子的种植盆照常打开种植界面。HUD 植物面板中的「按预设」也可设置此项。");
         var isKeepingRobotsStocked = Config.Bind("Robots", "RobotKeepStocked", false,
             "When true, a planter robot whose seed for a pot size has run out is switched to the next seed in the planting preset for its floor, so it keeps sowing. This changes the robot's own sow settings.\n" +
             "设为 true 时，种植机器人某种盆大小的种子用完后，会按其所在楼层的种植预设换成下一种种子，让它继续播种。这会修改机器人自己的播种设置。");
@@ -44,18 +47,20 @@ public sealed class Plugin : BasePlugin
             new PresetFileOnDisk(Path.Combine(Paths.ConfigPath, PresetFileName), log.Write),
             hours => rotWarnHours.Value = hours,
             isOn => isKeepingRobotsStocked.Value = isOn,
+            isOn => isTendFromPresets.Value = isOn,
             log.Write);
 
         OptionalLive.Watch(isLoggingToFile, isOn => log.IsFileOn = isOn);
         log.Write($"===== Farm Hub {Version} started");
         InputGate.Apply(harmony, log.Write);
         PageMessages.Apply(harmony, log.Write);
+        TendHooks.Apply(harmony, log.Write);
 
         OptionalLive.Watch(() =>
         {
-            session.UseSettings(panelKey.Value, isPanelKeyShifted.Value, rotWarnHours.Value, isKeepingRobotsStocked.Value);
-            log.Write($"key {(isPanelKeyShifted.Value ? "Shift+" : "")}{panelKey.Value}, rot warning {rotWarnHours.Value} h, robots kept stocked {isKeepingRobotsStocked.Value}");
-        }, panelKey, isPanelKeyShifted, rotWarnHours, isKeepingRobotsStocked);
+            session.UseSettings(panelKey.Value, isPanelKeyShifted.Value, rotWarnHours.Value, isKeepingRobotsStocked.Value, isTendFromPresets.Value);
+            log.Write($"key {(isPanelKeyShifted.Value ? "Shift+" : "")}{panelKey.Value}, rot warning {rotWarnHours.Value} h, robots kept stocked {isKeepingRobotsStocked.Value}, tend from presets {isTendFromPresets.Value}");
+        }, panelKey, isPanelKeyShifted, rotWarnHours, isKeepingRobotsStocked, isTendFromPresets);
 
         FarmTicker.Session = session;
         FarmTicker.Log = log.Write;

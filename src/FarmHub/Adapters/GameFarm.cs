@@ -99,7 +99,17 @@ internal sealed class GameFarm : IFarmGame
 
         if (batch == null || !batch.IsUnlocked()) return false;
 
-        batch.OnBatchRequest();
+        TendHooks.IsOwnBatch = true;
+
+        try
+        {
+            batch.OnBatchRequest();
+        }
+        finally
+        {
+            TendHooks.IsOwnBatch = false;
+        }
+
         _log("sent the tend-everything patrol");
 
         return true;
@@ -142,7 +152,66 @@ internal sealed class GameFarm : IFarmGame
         var owned = ReadOwned(world._ItemManager, catalog, roleId);
         var playerFloor = Floors.Level(agents.GetAgentFloor(roleId));
 
-        return new FarmRead.Ready(new FarmWorld(catalog, pots, robots, owned, areaNames, playerFloor, SaveSlot.CurrentKey()));
+        return new FarmRead.Ready(new FarmWorld(catalog, pots, robots, owned, areaNames, playerFloor, SaveSlot.CurrentKey())
+        {
+            Stamina = ReadStamina(role),
+            ChoreCost = ReadChoreCost(),
+            ShowIds = ReadShowIds(pots),
+        });
+    }
+
+    private float? ReadStamina(LeadingRole role)
+    {
+        try
+        {
+            return AgentTools.GetAgentComponent<AttributeComponent>(role)?.GetTotalValue_Float(AttrName.Stamina);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("stamina read", ex);
+
+            return null;
+        }
+    }
+
+    private int ReadChoreCost()
+    {
+        try
+        {
+            return GameKey.GlobalSetting_PlantActionCost;
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("chore cost read", ex);
+
+            return 0;
+        }
+    }
+
+    /// <summary>The HUD's plant list names pots by their shown model's id; the page matches its rows to pots with these.</summary>
+    private Dictionary<long, long> ReadShowIds(List<Pot> pots)
+    {
+        var ids = new Dictionary<long, long>();
+
+        try
+        {
+            var models = GameSingleton.Existing<GameCore.HotUpdate.Battle.Show.BattleShowWorld>()?._AgentModelManager;
+
+            if (models == null) return ids;
+
+            foreach (var pot in pots)
+            {
+                var model = models.GetAgentModelByLogicInstanceId(pot.Id);
+
+                if (model != null) ids[pot.Id] = model.InstanceId;
+            }
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("show id read", ex);
+        }
+
+        return ids;
     }
 
     private static (BattleLogicWorld World, ConfigManager Config, AgentManager Agents, LeadingRole Role)? LoadedGame()

@@ -234,7 +234,33 @@
     warnHead: 'Warnings',
     otherHead: 'Other',
     gTwice: 'G opens this window and also runs the game\'s Tend Garden. Set PanelKeyShift to true to open it with Shift+G instead.',
-    tip: 'Your pots: ripe crops, problems and planting'
+    tip: 'Your pots: ripe crops, problems and planting',
+    fromPresets: 'from presets',
+    hNextTend: 'Next Tend:',
+    hChores: '{0} chores',
+    hStamina: '{0} of {1} stamina',
+    hThen: 'then plant {0}, fertilize {1}',
+    hShow: 'Show',
+    hNeeds: 'Needs you ({0})',
+    hAll: 'All ({0})',
+    hMore: '+ {0} more growing',
+    hEmptyHead: 'Empty pots: plant from your presets',
+    hGrowingHead: 'Growing: next ready',
+    hEmptyPot: 'Empty pot',
+    hPlantSeed: 'plant {0}',
+    hNoSeed: 'no seed',
+    hSeeds: '{0} seeds',
+    hRotsIn: 'rots in {0}',
+    hThenCrop: 'then',
+    hClean: 'Clean up',
+    hNeedsFert: 'needs fertilizer',
+    hThenHead: 'Then, from your presets',
+    hReplant: 'Replant',
+    hPlantEmpty: 'Plant empty pots',
+    hShort: 'Not enough stamina for all of it; the rest waits.',
+    hNoSeedFor: 'No seed left for {0}',
+    hNoSeedMore: 'No seed left for {0} and {1} more',
+    hIdle: 'Nothing to tend right now.'
   };
 
   var state = {
@@ -2139,6 +2165,7 @@
       }
 
       placeHudButton(doc);
+      patchPlantPanel(doc);
     }
   }
 
@@ -2243,8 +2270,548 @@
     return tip;
   }
 
+  // ---------- the game's plant panel ----------
+
+  // Additions to the HUD's own Plants panel (the list under the ripe-crop counter): a "from presets" box beside the
+  // game's Replant box, the Tend Garden plan in the patrol button's tip, a strip with the plan and a Needs you / All
+  // filter, a second line under each row, and the empty pots, which the game does not list. Only our own nodes are
+  // added (class fh-hudadd); the game's nodes and classes are never changed, so Vue keeps drawing its rows as before.
+  var PANEL_STYLE_ID = 'fh-panel-style';
+  var FILTER_STYLE_ID = 'fh-filter-style';
+  var SHOWN_GROWING = 3;
+  var PANEL_CSS = [
+    '.mature-panel .mature-popover{max-width:340px}',
+    '.mature-panel .mature-item-row{flex-wrap:wrap}',
+    '#maturePatrolBtn .entry-tip{width:260px;max-width:300px;white-space:normal;left:-16px;transform:none;z-index:30}',
+    '.fh-sub{flex-basis:100%;display:flex;align-items:center;gap:5px;padding-left:18px;font-size:9.5px;color:rgba(255,255,255,0.55);white-space:nowrap;text-shadow:1px 1px 2px black}',
+    '.fh-sub img,.fh-empty img.fh-pot{width:11px;height:11px;object-fit:contain}',
+    '.fh-sub .fh-right{margin-left:auto;display:inline-flex;align-items:center;gap:4px}',
+    '.fh-gold{color:#ffd54f}',
+    '.fh-red{color:#ef9a9a;font-weight:bold}',
+    '.fh-orange{color:#ffb74d}',
+    '.fh-sep{color:rgba(255,255,255,0.25)}',
+    '.fh-strip{display:flex;flex-wrap:wrap;align-items:center;gap:3px 5px;padding:2px 4px 3px;font-size:9.5px;color:rgba(255,255,255,0.75);text-shadow:1px 1px 2px black}',
+    '.fh-strip b{color:#ffd54f}',
+    '.fh-strip .fh-plan-line{flex-basis:100%;white-space:normal}',
+    '.fh-strip .fh-warn{color:#ffb74d}',
+    '.fh-pick{cursor:pointer;padding:0 5px;border-radius:7px;border:1px solid transparent}',
+    '.fh-pick.fh-on{border-color:rgba(255,193,7,0.45);color:#ffd54f}',
+    '.fh-lnk{margin-left:auto;color:#ffd54f;border:1px solid rgba(255,193,7,0.45);border-radius:8px;padding:0 7px;cursor:pointer}',
+    '.fh-lnk:hover,.fh-pick:hover{background:rgba(255,193,7,0.16)}',
+    '.fh-sec{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:rgba(255,193,7,0.8);padding:4px 2px 1px;text-shadow:1px 1px 2px black}',
+    '.fh-empties{display:flex;flex-direction:column;gap:2px}',
+    '.fh-more{font-size:9.5px;color:rgba(255,255,255,0.55);padding:2px 4px;cursor:pointer;text-shadow:1px 1px 2px black}',
+    '.fh-more:hover{color:#ffd54f}',
+    '.fh-plan{margin-top:4px;font-size:11px;color:#ddd}',
+    '.fh-plan-list{margin:4px 0 2px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}',
+    '.fh-plan-list .fh-n{color:#ffd54f;font-family:Consolas,monospace;text-align:right}',
+    '.fh-plan-h{font-size:10px;color:rgba(255,193,7,0.85);letter-spacing:1px;margin-top:6px;text-transform:uppercase}',
+    '.fh-plan-foot{margin-top:5px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.12);font-size:10.5px;color:#cfd3d5}',
+    '.fh-plan-foot b{color:#ffd54f}',
+    '.fh-plan-foot.fh-warn{color:#ffb74d}'
+  ].join('\n');
+  // In Needs you, growing rows past the first few are hidden. The game lists growing pots last, so this is every
+  // growing row after the third.
+  var NEEDS_CSS = '.mature-popover .is-growing ~ .is-growing ~ .is-growing ~ .is-growing{display:none}';
+
+  var hudData = { ready: false };
+  var hudById = {};
+  var hudSeq = 0;
+  var panelShow = 'needs';
+  var hasReportedVue = false;
+  var hasReportedPanel = false;
+
+  // What the plugin sends every couple of seconds for the panel (HudView): each listed pot's room and what it needs,
+  // the empty pots, and the Tend Garden plan.
+  function hud(data) {
+    hudData = data && data.ready ? data : { ready: false };
+    hudById = {};
+    (hudData.pots || []).forEach(function (p) { hudById[p.show] = p; });
+    hudSeq++;
+    patchPagesSafely();
+  }
+
+  // The HUD page's Vue state, which holds the plant rows' ids in the order the rows are drawn. Null if a game update
+  // moved it, and then the rows get no second line; the rest still works.
+  function vueState(doc) {
+    try {
+      var app = doc.getElementById('app');
+      var setup = app && app._vnode && app._vnode.component && app._vnode.component.setupState;
+
+      return (setup && setup.state) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function patchPlantPanel(doc) {
+    var row = doc.querySelector('.mature-toggle-row');
+
+    if (!row || !state.isLive || !hudData.ready) {
+      doc.querySelectorAll('.fh-hudadd').forEach(function (node) { node.remove(); });
+      setFilterStyle(doc, false);
+
+      return;
+    }
+
+    var vue = vueState(doc);
+
+    if (!vue && !hasReportedVue) send('diag|the HUD plant panel has no Vue state to read, so its rows get no second line');
+    hasReportedVue = hasReportedVue || !vue;
+
+    addPanelStyle(doc);
+    placePresetsBox(doc, row);
+    placePlan(doc, vue);
+
+    var list = doc.querySelector('.mature-popover');
+
+    setFilterStyle(doc, !!list && panelShow === 'needs');
+
+    if (list) {
+      var rows = gameRows(list);
+
+      placeStrip(doc, list, rows, vue);
+      placeRowLines(doc, rows, vue);
+      placeEmpties(doc, list);
+      placeMore(doc, list, rows);
+    }
+
+    if (!hasReportedPanel) send('diag|Farm Hub added to the HUD plant panel');
+    hasReportedPanel = true;
+  }
+
+  function gameRows(list) {
+    return Array.prototype.filter.call(list.querySelectorAll('.mature-item-row'), isGameRow);
+  }
+
+  function isGameRow(node) { return !node.classList.contains('fh-hudadd'); }
+
+  function isGrowingRow(node) { return node.classList.contains('is-growing'); }
+
+  function isReplantOn(vue) { return !!(vue && vue.matureReplantOn); }
+
+  // Beside the game's Replant box, only while the game shows that box (Tend Garden unlocked). Built once.
+  function placePresetsBox(doc, row) {
+    var box = row.querySelector('.fh-presets-chk');
+
+    if (!row.querySelector('#matureReplantChk')) {
+      if (box) box.remove();
+
+      return;
+    }
+
+    if (!box) {
+      box = presetsBox(doc);
+      row.insertBefore(box, row.querySelector('.mature-toggle-chevron'));
+    }
+
+    box.querySelector('input').checked = !!hudData.fromPresets;
+  }
+
+  function presetsBox(doc) {
+    var label = make(doc, 'label', 'mature-replant-chk fh-presets-chk fh-hudadd', '');
+    var input = doc.createElement('input');
+
+    label.setAttribute('data-interactive', '');
+    input.type = 'checkbox';
+    label.appendChild(input);
+    label.appendChild(make(doc, 'span', '', say('fromPresets')));
+    // The click must not reach the toggle row, which would open or close the list.
+    label.addEventListener('click', function (e) { e.stopPropagation(); });
+    input.addEventListener('change', function () {
+      hudData.fromPresets = !!input.checked;
+      send('frompresets|' + (input.checked ? '1' : '0'));
+    });
+
+    return label;
+  }
+
+  // The stamina Tend Garden spends: one chore's cost per chore, and two more chores for each pot it replants.
+  function plan(vue) {
+    var d = hudData;
+    var c = d.chores || {};
+    var chores = (c.harvest || 0) + (c.water || 0) + (c.pests || 0) + (c.weeds || 0) + (c.clean || 0);
+    var replant = isReplantOn(vue) ? d.replant || 0 : 0;
+    var need = (chores + replant * 2) * (d.cost || 0);
+
+    return { chores: chores, replant: replant, need: need, hasStamina: d.stamina >= 0 && d.cost > 0, isShort: d.stamina >= 0 && d.cost > 0 && need > d.stamina };
+  }
+
+  // Our part of the game's Tend Garden tip, after its title and key.
+  function placePlan(doc, vue) {
+    var tip = doc.querySelector('#maturePatrolBtn') && doc.querySelector('#maturePatrolBtn').querySelector('.entry-tip');
+
+    if (!tip) return;
+
+    var key = hudSeq + '|' + isReplantOn(vue);
+    var old = tip.querySelector('.fh-plan');
+
+    if (old && old.getAttribute('data-key') === key) return;
+    if (old) old.remove();
+
+    var block = planTip(doc, vue);
+
+    block.setAttribute('data-key', key);
+    tip.appendChild(block);
+  }
+
+  function planTip(doc, vue) {
+    var d = hudData;
+    var c = d.chores || {};
+    var p = plan(vue);
+    var block = make(doc, 'div', 'fh-plan fh-hudadd', '');
+    var lines = [['tHarvest', c.harvest], ['tWater', c.water], ['tPests', c.pests], ['tWeeds', c.weeds], ['hClean', c.clean]]
+      .filter(function (l) { return l[1] > 0; });
+
+    if (lines.length) block.appendChild(planList(doc, lines));
+
+    if (d.fromPresets) {
+      var then = [['hReplant', p.replant], ['hPlantEmpty', d.plant], ['fertilize', d.fert]].filter(function (l) { return l[1] > 0; });
+
+      if (then.length) {
+        block.appendChild(make(doc, 'div', 'fh-plan-h', say('hThenHead')));
+        block.appendChild(planList(doc, then));
+      }
+    }
+
+    if (!lines.length && !(d.fromPresets && (p.replant || d.plant || d.fert))) {
+      block.appendChild(make(doc, 'div', 'fh-plan-foot', say('hIdle')));
+
+      return block;
+    }
+
+    var foot = make(doc, 'div', 'fh-plan-foot', '');
+
+    foot.appendChild(boldParts(doc, 'hChores', [p.chores + p.replant * 2]));
+
+    if (p.hasStamina) {
+      foot.appendChild(make(doc, 'span', 'fh-sep', ' \u00b7 '));
+      foot.appendChild(boldParts(doc, 'hStamina', [p.need, d.stamina]));
+    }
+
+    block.appendChild(foot);
+
+    if (p.isShort) block.appendChild(make(doc, 'div', 'fh-plan-foot fh-warn', say('hShort')));
+    if (d.fromPresets && d.noSeed > 0) block.appendChild(make(doc, 'div', 'fh-plan-foot fh-warn', noSeedWords()));
+
+    return block;
+  }
+
+  function noSeedWords() {
+    return hudData.noSeed > 1 ? say('hNoSeedMore', hudData.noSeedName, hudData.noSeed - 1) : say('hNoSeedFor', hudData.noSeedName);
+  }
+
+  function planList(doc, lines) {
+    var list = make(doc, 'div', 'fh-plan-list', '');
+
+    lines.forEach(function (l) {
+      list.appendChild(make(doc, 'span', '', say(l[0])));
+      list.appendChild(make(doc, 'span', 'fh-n', String(l[1])));
+    });
+
+    return list;
+  }
+
+  // A phrase with its numbers in bold, in whichever order the language puts them.
+  function boldParts(doc, key, numbers) {
+    var node = make(doc, 'span', '', '');
+
+    say(key).split(/(\{\d\})/).forEach(function (part) {
+      var m = /^\{(\d)\}$/.exec(part);
+
+      if (m) node.appendChild(make(doc, 'b', '', String(numbers[+m[1]])));
+      else if (part) node.appendChild(doc.createTextNode(part));
+    });
+
+    return node;
+  }
+
+  // "Next Tend: 6 chores, 18 of 40 stamina, then plant 2, fertilize 1", the filter, and the way into Farm Hub.
+  function placeStrip(doc, list, rows, vue) {
+    var needs = rows.filter(function (r) { return !isGrowingRow(r); }).length + (hudData.empty || []).length;
+    var all = rows.length + (hudData.empty || []).length;
+    var key = [hudSeq, isReplantOn(vue), panelShow, needs, all].join('|');
+    var strip = list.querySelector('.fh-strip');
+
+    if (strip && strip.parentNode === list && list.firstChild === strip && strip.getAttribute('data-key') === key) return;
+    if (strip) strip.remove();
+
+    var d = hudData;
+    var p = plan(vue);
+    var line = make(doc, 'span', 'fh-plan-line', say('hNextTend') + ' ');
+
+    line.appendChild(boldParts(doc, 'hChores', [p.chores + p.replant * 2]));
+
+    if (p.hasStamina) {
+      line.appendChild(make(doc, 'span', 'fh-sep', ' \u00b7 '));
+      line.appendChild(make(doc, 'span', p.isShort ? 'fh-warn' : '', '')).appendChild(boldParts(doc, 'hStamina', [p.need, d.stamina]));
+    }
+
+    if (d.fromPresets && (d.plant > 0 || d.fert > 0)) {
+      line.appendChild(make(doc, 'span', 'fh-sep', ' \u00b7 '));
+      line.appendChild(boldParts(doc, 'hThen', [d.plant || 0, d.fert || 0]));
+    }
+
+    strip = make(doc, 'div', 'fh-strip fh-hudadd', '');
+    strip.setAttribute('data-key', key);
+    strip.appendChild(line);
+    strip.appendChild(make(doc, 'span', '', say('hShow')));
+    strip.appendChild(pick(doc, 'needs', say('hNeeds', needs)));
+    strip.appendChild(make(doc, 'span', 'fh-sep', '\u00b7'));
+    strip.appendChild(pick(doc, 'all', say('hAll', all)));
+
+    var link = make(doc, 'span', 'fh-lnk', 'Farm Hub \u2197');
+
+    link.setAttribute('data-interactive', '');
+    link.addEventListener('click', function (e) {
+      e.stopPropagation();
+      send('toggle');
+    });
+    strip.appendChild(link);
+    list.insertBefore(strip, list.firstChild);
+  }
+
+  function pick(doc, mode, words) {
+    var node = make(doc, 'span', 'fh-pick' + (panelShow === mode ? ' fh-on' : ''), words);
+
+    node.setAttribute('data-interactive', '');
+    node.setAttribute('data-show', mode);
+    node.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setShow(mode);
+    });
+
+    return node;
+  }
+
+  function setShow(mode) {
+    panelShow = mode;
+    patchPagesSafely();
+  }
+
+  function setFilterStyle(doc, isOn) {
+    var style = doc.getElementById(FILTER_STYLE_ID);
+
+    if (!isOn) {
+      if (style) style.remove();
+
+      return;
+    }
+
+    if (style) return;
+
+    style = doc.createElement('style');
+    style.id = FILTER_STYLE_ID;
+    style.textContent = NEEDS_CSS;
+    (doc.head || doc.body).appendChild(style);
+  }
+
+  // Rows are drawn in the order of the Vue state's plant list, so row i is that list's plant i.
+  function placeRowLines(doc, rows, vue) {
+    var plants = (vue && vue.maturePlants) || [];
+    var replantOn = isReplantOn(vue);
+
+    for (var i = 0; i < rows.length; i++) {
+      var plant = plants[i];
+      var data = plant ? hudById[String(plant.showInstanceId)] : null;
+      var key = data ? data.show + '|' + hudSeq + '|' + replantOn : '';
+      var sub = null;
+
+      for (var c = 0; c < rows[i].children.length; c++) {
+        if (rows[i].children[c].classList.contains('fh-sub')) sub = rows[i].children[c];
+      }
+
+      if (sub && sub.getAttribute('data-key') === key) continue;
+      if (sub) sub.remove();
+      if (!data) continue;
+
+      sub = rowLine(doc, data, replantOn);
+      sub.setAttribute('data-key', key);
+      rows[i].appendChild(sub);
+    }
+  }
+
+  // Where the pot is, then the one thing that matters most about it: rotting soon, what it is replanted with, or the
+  // chore or fertilizer it waits for.
+  function rowLine(doc, p, replantOn) {
+    var sub = make(doc, 'span', 'fh-sub fh-hudadd', '');
+    var right = make(doc, 'span', 'fh-right', '');
+
+    sub.appendChild(make(doc, 'span', '', place(p)));
+
+    if (p.warn && p.rot != null) {
+      right.appendChild(make(doc, 'span', 'fh-red', say('hRotsIn', hours(p.rot))));
+    } else if (p.need === 'harvest' && p.then > 0 && hudData.fromPresets && replantOn) {
+      var crop = cropOfSeed(p.then);
+
+      right.appendChild(make(doc, 'span', '', say('hThenCrop')));
+      right.appendChild(hudIcon(doc, seedOf(p.then).icon ? seedOf(p.then) : crop));
+      right.appendChild(make(doc, 'span', 'fh-gold', crop.name));
+    } else if (p.need === 'clear' || p.need === 'uproot') {
+      right.appendChild(make(doc, 'span', 'fh-orange', say('hClean')));
+    } else if (CHORE_WORD[p.need] && p.need !== 'harvest') {
+      right.appendChild(make(doc, 'span', 'fh-orange', say(CHORE_WORD[p.need])));
+    } else if (p.need === 'feed') {
+      right.appendChild(make(doc, 'span', 'fh-orange', say('hNeedsFert')));
+    }
+
+    if (right.children.length) sub.appendChild(right);
+
+    return sub;
+  }
+
+  function place(p) {
+    return p.area ? p.area + ' \u00b7 ' + p.kind : p.kind;
+  }
+
+  // The empty pots go between the pots that need the player and the growing ones, as the game sorts growing last. The
+  // block is rebuilt only when the plugin sends new data, and moved back if the game's rows moved around it.
+  function placeEmpties(doc, list) {
+    var empties = hudData.empty || [];
+    var block = list.querySelector('.fh-empties');
+    var firstGrowing = gameRows(list).filter(isGrowingRow)[0] || null;
+
+    if (!empties.length && !firstGrowing) {
+      if (block) block.remove();
+
+      return;
+    }
+
+    var key = hudSeq + '|' + (firstGrowing ? 'g' : '');
+
+    if (!block || block.getAttribute('data-key') !== key) {
+      if (block) block.remove();
+
+      block = emptiesBlock(doc, empties, !!firstGrowing);
+      block.setAttribute('data-key', key);
+    }
+
+    if (block.parentNode !== list || nextOf(block) !== firstGrowing) list.insertBefore(block, firstGrowing);
+  }
+
+  function emptiesBlock(doc, empties, hasGrowing) {
+    var block = make(doc, 'div', 'fh-empties fh-hudadd', '');
+
+    if (empties.length) {
+      block.appendChild(make(doc, 'div', 'fh-sec', say('hEmptyHead')));
+      empties.forEach(function (e) { block.appendChild(emptyRow(doc, e)); });
+    }
+
+    if (hasGrowing) block.appendChild(make(doc, 'div', 'fh-sec', say('hGrowingHead')));
+
+    return block;
+  }
+
+  function emptyRow(doc, e) {
+    var row = make(doc, 'div', 'mature-item-row fh-empty fh-hudadd', '');
+    var kind = kindOf(e.kindId);
+    var pot = hudIcon(doc, kind);
+    var sub = make(doc, 'span', 'fh-sub', '');
+
+    pot.className = 'fh-pot';
+    row.setAttribute('data-interactive', '');
+    row.setAttribute('data-pot', e.id);
+    row.appendChild(pot);
+    row.appendChild(make(doc, 'span', 'mature-item-name', say('hEmptyPot')));
+
+    if (e.seed > 0) {
+      row.appendChild(make(doc, 'span', 'mature-item-remain', say('hPlantSeed', cropOfSeed(e.seed).name)));
+    } else {
+      row.appendChild(make(doc, 'span', 'mature-item-remain fh-orange', say('hNoSeed')));
+    }
+
+    sub.appendChild(make(doc, 'span', '', place(e)));
+
+    if (e.seed > 0) {
+      var right = make(doc, 'span', 'fh-right', '');
+
+      right.appendChild(hudIcon(doc, seedOf(e.seed)));
+      right.appendChild(make(doc, 'span', '', say('hSeeds', e.count)));
+      sub.appendChild(right);
+    }
+
+    row.appendChild(sub);
+    row.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+
+      if (e.seed > 0) sendAction('plant|' + e.id);
+      else send('toggle');
+    });
+
+    return row;
+  }
+
+  // "+ 4 more growing" under the list while Needs you hides them; a click shows them all.
+  function placeMore(doc, list, rows) {
+    var hidden = panelShow === 'needs' ? Math.max(0, rows.filter(isGrowingRow).length - SHOWN_GROWING) : 0;
+    var more = list.querySelector('.fh-more');
+    var key = String(hidden);
+
+    if (!hidden) {
+      if (more) more.remove();
+
+      return;
+    }
+
+    if (!more || more.getAttribute('data-key') !== key) {
+      if (more) more.remove();
+
+      more = make(doc, 'div', 'fh-more fh-hudadd', say('hMore', hidden));
+      more.setAttribute('data-key', key);
+      more.setAttribute('data-interactive', '');
+      more.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setShow('all');
+      });
+    }
+
+    if (more.parentNode !== list || nextOf(more) !== null) list.appendChild(more);
+  }
+
+  function nextOf(node) {
+    var siblings = node.parentNode ? node.parentNode.children : [];
+    var at = Array.prototype.indexOf.call(siblings, node);
+
+    return at >= 0 && at + 1 < siblings.length ? siblings[at + 1] : null;
+  }
+
+  // An item's picture, or nothing when the game has none. Icon paths are relative to the root document's folder and
+  // the HUD page sits in a folder of its own, so they are made absolute first.
+  function hudIcon(doc, item) {
+    var img = doc.createElement('img');
+
+    if (item && item.icon) img.src = rootUrl(item.icon);
+    else img.style.visibility = 'hidden';
+
+    return img;
+  }
+
+  function rootUrl(path) {
+    if (/^([a-z]+:|\/)/i.test(path)) return path;
+
+    return String(location.href || '').replace(/[^\/]*([?#].*)?$/, '') + path;
+  }
+
+  function addPanelStyle(doc) {
+    if (doc.getElementById(PANEL_STYLE_ID)) return;
+
+    var style = doc.createElement('style');
+    style.id = PANEL_STYLE_ID;
+    style.textContent = PANEL_CSS;
+    (doc.head || doc.body).appendChild(style);
+  }
+
+  function make(doc, tag, className, words) {
+    var node = doc.createElement(tag);
+
+    if (className) node.className = className;
+    if (words) node.textContent = words;
+
+    return node;
+  }
+
   setInterval(patchPagesSafely, 400);
 
-  window.__slfarmhub = { open: open, setData: setData, close: close, status: status, live: setLive, catalog: catalog, badge: setBadge };
+  window.__slfarmhub = { open: open, setData: setData, close: close, status: status, live: setLive, catalog: catalog, badge: setBadge, hud: hud };
   send('ready');
 })();

@@ -14,38 +14,29 @@
   var TOAST_MS = 3500;
   var MAX_ADD = 30;
   var MAX_KEEP = 99;
-  var MAX_NEEDS = 14;
+  var MAX_COMING = 8;
+  var MAX_NAMES = 4;
   var FORECAST_HOURS = 48;
-  var FORECAST_STEP = 6;
-  // The least room a forecast chip takes, as a share of the timeline, when deciding which lane it fits in.
-  var CHIP_SHARE = 17;
-  // About how wide the timeline is in pixels, for turning a chip's text length into a share of it.
-  var TIMELINE_PX = 880;
   var SVG_NS = 'http://www.w3.org/2000/svg';
   // A sprout: a stem with two leaves over a pot.
   var SPROUT_PATH = 'M11 21v-7.2C8.4 13.6 6 11.4 6 8c2.9 0 5 1.6 5 4.4V12h2v.4C13 9.6 15.1 8 18 8c0 3.4-2.4 5.6-5 5.8V21h-2zM6 18h12l-1 4H7l-1-4z';
-  var TABS = ['pots', 'presets', 'robots', 'forecast', 'settings'];
-  var TAB_WORD = { pots: 'tabPots', presets: 'tabPresets', robots: 'tabRobots', forecast: 'tabForecast', settings: 'tabSettings' };
+  // The game's own Tend Garden key, which Farm Hub leaves alone.
+  var GAME_TEND_KEY = 'G';
+  var TABS = ['pots', 'presets', 'robots', 'settings'];
+  var TAB_WORD = { pots: 'tabPots', presets: 'tabPresets', robots: 'tabRobots', settings: 'tabSettings' };
   var STATE_WORD = { empty: 'stEmpty', growing: 'stGrowing', ripe: 'stRipe', withered: 'stWithered', poor: 'stPoor' };
-  var STATE_BADGE = { empty: 'fh-b-dim', growing: '', ripe: 'fh-b-green', withered: 'fh-b-red', poor: 'fh-b-red' };
-  var STATE_ORDER = ['ripe', 'withered', 'poor', 'growing', 'empty'];
   var PROBLEM_WORD = { pests: 'pPests', weeds: 'pWeeds', dry: 'pDry', dark: 'pDark', bright: 'pBright', cold: 'pCold', feed: 'pFeed' };
-  var PROBLEM_BADGE = { pests: 'fh-b-amber', weeds: 'fh-b-amber', dry: 'fh-b-blue', dark: 'fh-b-red', bright: 'fh-b-red', cold: 'fh-b-red', feed: 'fh-b-amber' };
   var CHORE_WORD = { harvest: 'tHarvest', clear: 'tClear', uproot: 'tUproot', pests: 'tPests', weeds: 'tWeeds', water: 'tWater' };
   var FROM_WORD = { pot: 'fromPot', room: 'fromRoom', floor: 'fromFloor', all: 'fromAll' };
   var SIZE_WORD = { 1: 'szSmall', 2: 'szMedium', 4: 'szLarge' };
-  var SHOWS = [['all', 'fAll'], ['ripe', 'fRipe'], ['rot', 'fRot'], ['pests', 'fPests'], ['dry', 'fDry'], ['care', 'fCare'], ['empty', 'fEmpty'], ['norobot', 'fNoRobot']];
-  var GROUPS = [['room', 'gRoom'], ['crop', 'gCrop'], ['state', 'gState']];
-  var SORTS = [['rot', 'sRot'], ['ripe', 'sRipe'], ['name', 'sName']];
+  var SIZE_SHORT = { 1: 'szS', 2: 'szM', 4: 'szL' };
+  var SHOWS = [['needs', 'fNeeds'], ['empty', 'fEmpty'], ['growing', 'fGrowing'], ['all', 'fAll']];
   var ROT_WARNS = [6, 12, 24, 48];
 
   var LOCAL = {
-    tab: pickTab, pick: pickPot, check: checkPot, clearchecks: clearChecks,
-    filter: function (v) { state.show = v; render(); },
-    fcrop: function (v) { state.crop = state.crop === +v ? 0 : +v; render(); },
-    froom: function (v) { state.room = state.room === v ? '' : v; render(); },
-    group: function (v) { state.group = v; render(); },
-    sort: function (v) { state.sort = v; render(); },
+    tab: pickTab, pick: pickPot, pickat: pickAt, back: unpick,
+    show: function (v) { state.show = v; render(); },
+    editpreset: function (id) { state.tab = 'presets'; pickPreset(id); },
     preset: pickPreset, newpreset: newPreset,
     seedup: function (a) { moveSeed(a, -1); }, seeddown: function (a) { moveSeed(a, 1); }, seeddel: removeSeed,
     keepless: function (a) { changeKeep(a, -1); }, keepmore: function (a) { changeKeep(a, 1); },
@@ -67,48 +58,26 @@
     tabPots: 'Pots',
     tabPresets: 'Planting presets',
     tabRobots: 'Robots',
-    tabForecast: 'Forecast',
     tabSettings: 'Settings',
     sumPots: '{0} pots',
-    cRipe: '{0} ripe',
-    cRot: '{0} rotting soon',
-    cPests: '{0} pests or weeds',
-    cDry: '{0} dry',
     cEmpty: '{0} empty',
-    plantAll: 'Plant empty pots ({0})',
+    plantAll: 'Plant empty ({0})',
     fertAll: 'Fertilize ({0})',
-    tendAll: 'Tend everything',
+    tendAll: 'Tend all ({0})',
     tHarvest: 'Harvest',
     tClear: 'Clear withered crop',
     tUproot: 'Uproot poor crop',
     tPests: 'Remove Pests',
     tWeeds: 'Remove Weeds',
     tWater: 'Water',
-    show: 'Show',
     fAll: 'All',
-    fRipe: 'Ripe',
-    fRot: 'Rotting soon',
-    fPests: 'Pests or weeds',
-    fDry: 'Dry',
-    fCare: 'Needs care',
     fEmpty: 'Empty',
-    fNoRobot: 'No robot',
-    crops: 'Crop',
-    rooms: 'Room',
-    groupBy: 'Group by',
-    gRoom: 'Room',
-    gCrop: 'Crop',
-    gState: 'State',
-    sortBy: 'Sort',
-    sRot: 'Rots first',
-    sRipe: 'Ripe first',
-    sName: 'Name',
     noMatch: 'No pot matches these filters.',
     floor: 'Floor {0}',
     here: 'your floor',
     otherRoom: 'Elsewhere',
-    emptyPots: 'Empty pots',
     nPots: '{0} pots',
+    onePot: '1 pot',
     stEmpty: 'Empty',
     stGrowing: 'Growing',
     stRipe: 'Ripe',
@@ -135,7 +104,6 @@
     noPreset: 'No preset',
     plant: 'Plant',
     fertilize: 'Fertilize',
-    preset: 'Planting preset',
     fromPot: 'This pot\'s own choice',
     fromRoom: 'From its room',
     fromFloor: 'From its floor',
@@ -144,8 +112,6 @@
     empty: 'No pots placed at home yet.',
     needsYou: 'Needs you',
     allFine: 'Nothing needs you right now.',
-    pickPot: 'Click a pot to see its timing, next planting and preset.',
-    pot: 'Pot',
     size: 'Size',
     light: 'Light +{0}',
     heat: 'Heat +{0}',
@@ -165,9 +131,6 @@
     nSeeds: '{0} seeds',
     keepN: 'keep {0}',
     plantNote: 'Plants the first seed you have more of than its keep count.',
-    selected: '{0} selected',
-    clear: 'Clear',
-    assignTo: 'Preset:',
     noSaveYet: 'Save the game once to pick presets per pot.',
     confirm: 'Sure?',
     newPreset: 'New preset',
@@ -240,8 +203,6 @@
     colItem: 'Item',
     colHave: 'Have',
     comingUp: 'Next 48 hours',
-    now: 'now',
-    rots: '{0} rots',
     nothingSoon: 'Nothing ripens or rots in the next 48 hours.',
     rotWarn: 'Rotting soon means within',
     rotWarnNote: 'Pots this close to rotting are marked red and counted on the plant button.',
@@ -250,12 +211,34 @@
     keyNone: 'No key is set; use the plant button on the left of the screen.',
     presetFile: 'Presets are kept in BepInEx/config/farm-hub.json, shared by every save.',
     escClose: 'Esc to close',
+    fNeeds: 'Needs you',
+    fGrowing: 'Growing',
+    cNeed: '{0} need you',
+    keyTend: 'Tend Garden (game)',
+    keyThis: 'this window',
+    nJobs: '{0} jobs',
+    todoCare: 'Clear, weed or water',
+    todoSpot: 'Bad spot',
+    todoPlant: 'Plant empty pots',
+    inHours: 'in {0}',
+    readyPill: 'Ripens',
+    rotsPill: 'Rots',
+    tendNote: 'Harvests, clears, weeds and waters like the game\'s Tend Garden, then plants and fertilizes from your presets.',
+    backNeeds: 'Needs you',
+    thisPot: 'This pot',
+    afterHarvest: 'After harvest',
+    szS: 'S',
+    szM: 'M',
+    szL: 'L',
+    keysHead: 'Keys',
+    warnHead: 'Warnings',
+    otherHead: 'Other',
+    gTwice: 'G opens this window and also runs the game\'s Tend Garden. Set PanelKeyShift to true to open it with Shift+G instead.',
     tip: 'Your pots: ripe crops, problems and planting'
   };
 
   var state = {
-    data: { ready: false, note: '' }, isOpen: false, isLive: false, key: '', badge: 0, tab: 'pots', sel: '', checks: {},
-    show: 'all', crop: 0, room: '', group: 'room', sort: 'rot',
+    data: { ready: false, note: '' }, isOpen: false, isLive: false, key: '', badge: 0, tab: 'pots', sel: '', show: 'all', potSearch: '',
     presetId: '', draft: null, draftOf: '', pendingNewFrom: null, addCap: 0, addSearch: '', isCropPicking: false, cropSearch: '',
     tierEdit: null, armed: '', isTyping: false, isStale: false
   };
@@ -368,11 +351,13 @@
     return node;
   }
 
-  // A row of choices where one is on, like the game's tab strips.
+  // A row of choices where one is on, like the game's tab strips; a choice may carry a count.
   function segment(choices, current, action) {
     var seg = el('div', 'fh-seg');
 
-    choices.forEach(function (c) { seg.appendChild(act(el('button', 'fh-sg' + (c[0] === current ? ' fh-on' : ''), c[1]), action, c[0])); });
+    choices.forEach(function (c) {
+      seg.appendChild(put(act(el('button', 'fh-sg' + (c[0] === current ? ' fh-on' : ''), c[1]), action, c[0]), c[2] != null ? el('span', 'fh-n', String(c[2])) : null));
+    });
 
     return seg;
   }
@@ -382,7 +367,7 @@
   }
 
   function badge(content, colorClass) {
-    return el('span', 'fh-badge' + (colorClass ? ' ' + colorClass : ''), content);
+    return el('span', 'fh-pill' + (colorClass ? ' ' + colorClass : ''), content);
   }
 
   function section(title, right) {
@@ -398,145 +383,140 @@
   }
 
   var CSS = [
-    '#fh-root{position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",sans-serif;color:#eee;user-select:none;font-size:14px}',
+    '#fh-root{--ac:#FFC83A;--tx:#f0e8d8;--t2:#cbbfa8;--t3:#a89a82;--t4:#7a6e5a;--ln:rgba(220,188,120,.20);--ls:rgba(220,188,120,.11);--cf:rgba(70,58,44,.55);--cd:rgba(84,70,52,.45);--gr:#8cc56a;--rd:#e57373;--or:#ffa726;--glow:0 0 0 1px rgba(255,200,58,.55),0 0 14px rgba(255,200,58,.22);position:fixed;inset:0;z-index:2147483000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.45);font-family:"Noto Sans SC","Microsoft YaHei","PingFang SC",sans-serif;color:var(--tx);user-select:none;font-size:14px}',
     '#fh-root *{box-sizing:border-box}',
     '#fh-root button{font:inherit}',
-    '.fh-plate{width:min(1600px,96vw);height:min(940px,92vh);display:flex;flex-direction:column;gap:12px;padding:18px 22px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(30,30,33,.95),rgba(18,18,20,.97));box-shadow:0 10px 40px rgba(0,0,0,.6)}',
-    '.fh-head{display:flex;align-items:center;gap:14px}',
-    '.fh-title{font-size:22px;font-weight:700;letter-spacing:1px;text-shadow:0 2px 6px rgba(0,0,0,.6)}',
-    '.fh-sum{flex:1;font-size:14px;color:rgba(238,238,238,.6);display:flex;gap:6px;flex-wrap:wrap;align-items:baseline}',
-    '.fh-sum b{font-weight:700;color:#eee}.fh-sum .fh-dot{color:rgba(238,238,238,.3)}',
-    '.fh-cg{color:#aed581!important}.fh-cr{color:#ff8a80!important}.fh-ca{color:#EBA308!important}.fh-cb{color:#90caf9!important}',
-    '.fh-tabs{display:flex;gap:4px;border-bottom:1px solid rgba(255,255,255,.14)}',
-    '.fh-tab{font-size:15px;color:#b8b8b8;padding:8px 18px 9px;border:1px solid transparent;border-bottom:none;border-radius:7px 7px 0 0;background:none;position:relative;top:1px;display:flex;gap:8px;align-items:center;cursor:pointer}',
-    '.fh-tab:hover{color:#fff}.fh-tab.fh-on{color:#EBA308;background:rgba(10,10,12,.72);border-color:rgba(255,255,255,.14);font-weight:600}',
-    '.fh-tab .fh-n{font-size:11px;padding:1px 6px;border-radius:7px;background:#D32F2F;color:#fff;font-weight:700}',
-    '.fh-body{flex:1;min-height:0;display:flex;gap:12px}',
-    '.fh-well{background:rgba(10,10,12,.72);border:1px solid rgba(255,255,255,.14);border-radius:8px;min-height:0;overflow-y:auto}',
-    '.fh-well::-webkit-scrollbar{width:6px}.fh-well::-webkit-scrollbar-thumb{background:rgba(235,163,8,.35);border-radius:3px}',
-    '.fh-col{display:flex;flex-direction:column;gap:10px;min-height:0;min-width:0}',
-    '.fh-sect{font-size:12px;color:#EBA308;letter-spacing:2px;text-transform:uppercase;display:flex;align-items:center;gap:10px;padding:12px 12px 6px}',
-    '.fh-sect::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(235,163,8,.25),transparent)}',
-    '.fh-sect .fh-r{order:2;text-transform:none;letter-spacing:0;color:#888;font-size:12px}',
-    '.fh-sect .fh-badge{letter-spacing:0;text-transform:none}',
-    '.fh-side{width:250px;flex:none;padding:0 10px 12px}',
-    '.fh-chips{display:flex;gap:6px;flex-wrap:wrap;padding:2px 2px 4px}',
-    '.fh-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:7px;background:rgba(10,10,12,.72);border:1px solid rgba(255,255,255,.14);color:#eee;font-size:13px;cursor:pointer;white-space:nowrap}',
-    '.fh-chip.fh-ic{padding-left:4px}.fh-chip:hover{border-color:rgba(235,163,8,.6)}',
-    '.fh-chip.fh-on{border-color:#EBA308;color:#EBA308;background:rgba(235,163,8,.12)}',
-    '.fh-chip .fh-n{color:#EBA308;font-weight:600}.fh-chip.fh-zero{opacity:.45}',
-    '.fh-seg{display:inline-flex;border:1px solid rgba(255,255,255,.14);border-radius:7px;overflow:hidden;flex:none}',
-    '.fh-sg{font-size:13px;padding:5px 11px;color:#b8b8b8;background:none;border:none;border-right:1px solid rgba(255,255,255,.08);cursor:pointer;white-space:nowrap}',
-    '.fh-sg:last-child{border-right:none}.fh-sg:hover{color:#fff}.fh-sg.fh-on{background:rgba(235,163,8,.18);color:#EBA308}',
-    '.fh-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}',
-    '.fh-acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(10,10,12,.72)}',
-    '.fh-acts.fh-bulk{border-color:rgba(235,163,8,.6);background:rgba(235,163,8,.07)}.fh-acts .fh-grow{flex:1}',
-    '.fh-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 8px 8px}',
-    '.fh-card{position:relative;display:flex;gap:12px;align-items:center;padding:10px 10px 10px 12px;border-radius:7px;background:rgba(255,255,255,.04);border:1px solid transparent;cursor:pointer;min-height:78px}',
-    '.fh-card:hover{background:rgba(255,255,255,.07)}.fh-card.fh-hot{border-color:rgba(229,57,53,.5)}',
-    '.fh-card.fh-sel{border-color:rgba(235,163,8,.8);background:rgba(235,163,8,.08)}',
-    '.fh-chk{position:absolute;left:4px;top:4px;width:18px;height:18px;padding:0;border-radius:4px;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.6);color:#111;font-size:12px;line-height:16px;font-weight:700;cursor:pointer;opacity:0;z-index:1}',
-    '.fh-card:hover .fh-chk,.fh-checking .fh-chk{opacity:1}.fh-chk.fh-on{opacity:1;background:#EBA308;border-color:#EBA308}',
-    '.fh-cmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}',
-    '.fh-nm{font-size:15px;font-weight:600;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center;white-space:nowrap}',
-    '.fh-ln{font-size:13px;color:#b8b8b8;display:flex;gap:8px;align-items:center;white-space:nowrap;overflow:hidden}',
-    '.fh-sub{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.fh-crt{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}',
-    '.fh-badge{flex:none;font-size:11px;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.1);color:rgba(238,238,238,.85);white-space:nowrap;font-weight:400}',
-    '.fh-b-red{background:rgba(229,57,53,.28);color:#ff8a80}.fh-b-amber{background:rgba(255,193,7,.22);color:#EBA308}.fh-b-green{background:rgba(124,179,66,.24);color:#aed581}',
-    '.fh-b-blue{background:rgba(100,181,246,.2);color:#90caf9}.fh-b-dim{background:rgba(255,255,255,.06);color:#888}',
-    '.fh-track{width:110px;height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;flex:none}',
-    '.fh-fill{display:block;height:100%;border-radius:4px;background:#7cb342}.fh-fill.fh-amber{background:#EBA308}.fh-fill.fh-red{background:#e53935}.fh-fill.fh-blue{background:#64b5f6}',
-    '.fh-detail{width:440px;flex:none;padding:14px;display:flex;flex-direction:column;gap:12px}',
-    '.fh-dhead{display:flex;gap:12px;align-items:center}.fh-dname{flex:1;min-width:0}',
-    '.fh-big{font-size:20px;font-weight:700}.fh-dim{color:#888;font-size:12px}',
-    '.fh-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
-    '.fh-box{border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:6px}',
-    '.fh-box h4{margin:0 0 2px;display:flex;align-items:center;gap:8px;font-size:12px;color:#EBA308;letter-spacing:2px;text-transform:uppercase;font-weight:600}',
-    '.fh-kv{display:grid;grid-template-columns:auto 1fr;gap:5px 16px;font-size:13px;color:#b8b8b8}.fh-kv b{color:#eee;font-weight:600}',
-    '.fh-nrow{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 8px;border-radius:6px}',
-    '.fh-nrow.fh-next{background:rgba(124,179,66,.13)}.fh-nrow.fh-out{opacity:.45}.fh-nrow .fh-grow{flex:1;min-width:0}',
-    '.fh-ordn{width:16px;text-align:center;color:#888;font-size:12px}',
-    '.fh-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;background:rgba(255,255,255,.04);border:1px solid transparent;font-size:13px;cursor:pointer}',
-    '.fh-row:hover{background:rgba(255,255,255,.07)}.fh-row .fh-grow{flex:1;min-width:0}',
-    '.fh-rows{display:flex;flex-direction:column;gap:6px}',
-    '.fh-num{font-weight:600;color:#EBA308;font-variant-numeric:tabular-nums}',
-    '.fh-red{color:#ff8a80}.fh-green{color:#aed581}',
-    '.fh-btn{font-size:13px;color:#dde2f0;padding:7px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(58,58,60,.9),rgba(38,38,40,.92));cursor:pointer;white-space:nowrap}',
-    '.fh-btn:hover:not(:disabled){background:linear-gradient(180deg,rgba(72,66,48,.92),rgba(50,46,32,.95));border-color:rgba(255,193,7,.75)}',
-    '.fh-btn.fh-hot{border-color:rgba(235,163,8,.75);color:#EBA308}',
-    '.fh-btn.fh-danger:hover:not(:disabled),.fh-btn.fh-armed{background:linear-gradient(180deg,rgba(84,44,42,.92),rgba(58,30,28,.95));border-color:rgba(229,57,53,.75);color:#ff8a80}',
-    '.fh-btn.fh-sm{font-size:12px;padding:4px 9px}.fh-btn:disabled{opacity:.4;cursor:default}',
-    '.fh-btn.fh-x{width:32px;height:32px;padding:0;font-size:18px;line-height:30px;text-align:center}',
-    '.fh-ib{width:20px;height:20px;padding:0;border-radius:5px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#b8b8b8;font-size:11px;line-height:18px;text-align:center;cursor:pointer}',
-    '.fh-ib:hover:not(:disabled){border-color:#EBA308;color:#EBA308}.fh-ib:disabled{opacity:.2;cursor:default}.fh-ib.fh-del:hover{border-color:#e53935;color:#ff8a80}',
-    '.fh-tog{width:40px;height:22px;padding:0;border-radius:11px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.14);position:relative;flex:none;cursor:pointer}',
-    '.fh-tog::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#999;transition:left .15s}',
-    '.fh-tog.fh-on{background:rgba(235,163,8,.35);border-color:#EBA308}.fh-tog.fh-on::after{left:21px;background:#EBA308}',
-    '.fh-stepper{display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.14);border-radius:7px;overflow:hidden;font-size:13px;flex:none}',
-    '.fh-stp{padding:1px 8px;color:#999;background:rgba(255,255,255,.04);border:none;cursor:pointer}.fh-stp:hover:not(:disabled){color:#EBA308}.fh-stp:disabled{opacity:.3;cursor:default}',
-    '.fh-stepper b{padding:1px 6px;color:#EBA308;font-weight:600;min-width:28px;text-align:center}',
-    '.fh-setrow{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:7px;background:rgba(255,255,255,.04)}',
-    '.fh-lbl{flex:1;min-width:0}.fh-lbl b{display:block;font-size:14px;font-weight:600}.fh-lbl small{display:block;font-size:12px;color:#888;margin-top:2px}',
-    '.fh-note{font-size:12px;color:#888;padding:4px 12px}',
-    '.fh-banner{padding:8px 12px;border-radius:7px;border:1px solid rgba(255,193,7,.6);background:rgba(255,193,7,.1);color:#EBA308;font-size:13px}',
-    '.fh-plist{width:270px;flex:none;display:flex;flex-direction:column;gap:10px}.fh-plist .fh-well{flex:1}',
-    '.fh-pitem{display:flex;align-items:center;gap:8px;padding:10px 12px;margin:6px;border-radius:7px;background:rgba(255,255,255,.04);border:1px solid transparent;cursor:pointer}',
-    '.fh-pitem:hover{background:rgba(255,255,255,.07)}.fh-pitem.fh-sel{border-color:rgba(235,163,8,.75);background:rgba(235,163,8,.08)}',
-    '.fh-pitem .fh-lbl b{font-size:15px}.fh-pitem small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.fh-icons{display:flex;gap:2px;flex:none}',
-    '.fh-editor{flex:1;min-width:0;padding:12px 14px 16px;display:flex;flex-direction:column;gap:8px}',
-    '.fh-inp{font:inherit;font-size:15px;font-weight:600;color:#fff;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);border-radius:7px;padding:6px 10px;user-select:text}',
-    '.fh-inp:focus{outline:none;border-color:rgba(235,163,8,.75)}.fh-inp.fh-small{font-size:13px;font-weight:400;padding:4px 8px;width:100%}',
-    '.fh-capcols{display:grid;gap:8px}',
-    '.fh-capcol{border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:8px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:6px;min-width:0}',
-    '.fh-caphead{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;padding:2px 2px 4px}.fh-caphead .fh-grow{flex:1}',
-    '.fh-step{display:grid;grid-template-columns:18px 30px minmax(0,1fr) auto;gap:6px;align-items:center;padding:6px 7px;border-radius:7px;background:rgba(255,255,255,.04);border-left:2px solid transparent}',
-    '.fh-step.fh-short{border-left-color:#e53935}.fh-step.fh-go{border-left-color:#7cb342}.fh-step.fh-bad{opacity:.55}',
-    '.fh-ord{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:rgba(235,163,8,.18);color:#EBA308;font-weight:700;font-size:11px}',
-    '.fh-sinfo{min-width:0}.fh-sinfo b{font-size:13px;font-weight:600;display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}',
-    '.fh-sinfo small{display:block;font-size:11px;color:#888;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.fh-cut{min-width:0;overflow:hidden;text-overflow:ellipsis}.fh-go .fh-ord{background:rgba(124,179,66,.3);color:#9ccc65}',
+    '.fh-win{position:relative;width:min(1580px,96vw);height:min(920px,92vh);display:flex;flex-direction:column;padding:22px 26px 14px;border:1px solid rgba(220,188,120,.28);border-radius:4px;background:radial-gradient(ellipse at 15% 0%,rgba(150,100,40,.30),transparent 55%),linear-gradient(180deg,#3a3129 0%,#2b241d 55%,#241e18 100%);box-shadow:0 18px 60px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,220,150,.08)}',
+    '.fh-win::before{content:"";position:absolute;left:24px;right:24px;top:0;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.75}',
+    '.fh-whd{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--ln)}',
+    '.fh-logo{width:46px;height:46px;flex:none;border-radius:4px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#ffd25a,#e8a91c);color:#2a1f10;box-shadow:0 2px 8px rgba(0,0,0,.4)}',
+    '.fh-logo svg{width:28px;height:28px;fill:currentColor}',
+    '.fh-ttl{font-size:26px;letter-spacing:6px;text-transform:uppercase;color:#fff;font-weight:700;line-height:1.1;text-shadow:0 2px 6px rgba(0,0,0,.5)}',
+    '.fh-ttl small{display:block;font-size:14px;letter-spacing:0;text-transform:none;color:var(--t3);font-weight:400;margin-top:4px;text-shadow:none}.fh-ttl small b{color:var(--ac)}',
+    '.fh-tabs{margin-left:auto;display:flex;gap:6px}',
+    '.fh-tab{position:relative;padding:8px 20px;border:1px solid var(--ln);border-radius:3px;background:rgba(0,0,0,.18);color:var(--t2);font-size:15px;cursor:pointer;white-space:nowrap}',
+    '.fh-tab:hover{color:#fff;border-color:rgba(255,200,58,.45)}.fh-tab.fh-on{color:var(--ac);border-color:var(--ac);background:rgba(255,200,58,.13);box-shadow:var(--glow);font-weight:700}',
+    '.fh-tab .fh-n{position:absolute;top:-9px;right:-9px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#d84a3a;color:#fff;font-size:12px;font-weight:700;line-height:20px;text-align:center}',
+    '.fh-x{width:36px;height:36px;flex:none;padding:0;border:1px solid var(--ln);border-radius:3px;background:rgba(0,0,0,.18);color:var(--t3);font-size:20px;line-height:32px;cursor:pointer}.fh-x:hover{color:#fff;border-color:var(--ac)}',
+    '.fh-wbody{flex:1;min-height:0;display:flex;gap:18px;padding-top:14px}',
+    '.fh-main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:10px}',
+    '.fh-side{width:430px;flex:none;min-height:0;display:flex;flex-direction:column;gap:10px;padding:14px 16px;border:1px solid var(--ls);border-radius:3px;background:rgba(0,0,0,.18)}',
+    '.fh-side>.fh-scroll{flex:1}',
+    '.fh-c330{width:330px;flex:none;min-height:0;display:flex;flex-direction:column;gap:10px}.fh-c330>.fh-scroll{flex:1}',
+    '.fh-scroll{min-height:0;overflow-y:auto;padding-right:6px}',
+    '.fh-scroll::-webkit-scrollbar{width:6px}.fh-scroll::-webkit-scrollbar-thumb{background:rgba(255,200,58,.35);border-radius:3px}',
+    '.fh-ed{flex:1;min-width:0}',
+    '.fh-wfoot{display:flex;align-items:center;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--ln);color:var(--t3);font-size:14px}',
+    '.fh-status{flex:1;min-width:0;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.fh-kbd{display:inline-block;font-family:Consolas,monospace;font-size:13px;color:var(--tx);border:1px solid var(--ln);border-bottom-width:2px;border-radius:3px;padding:0 6px;margin-right:6px;background:rgba(0,0,0,.25)}',
+    '.fh-sect{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--ac);margin:6px 0 8px}',
+    '.fh-sect::before{content:"";width:4px;height:16px;background:var(--ac);flex:none;border-radius:1px}',
+    '.fh-sect::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--ln),transparent);order:1}',
+    '.fh-sect .fh-r{order:2;letter-spacing:0;text-transform:none;font-weight:400;font-size:13px;color:var(--t3)}',
+    '.fh-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border:1px solid var(--ln);border-radius:3px;background:linear-gradient(180deg,rgba(92,78,60,.9),rgba(66,55,42,.92));color:var(--tx);font-size:14px;cursor:pointer;white-space:nowrap}',
+    '.fh-btn:hover:not(:disabled){border-color:var(--ac);color:#fff}.fh-btn:disabled{opacity:.4;cursor:default}',
+    '.fh-btn.fh-sm{padding:4px 10px;font-size:13px}',
+    '.fh-btn.fh-q{background:rgba(255,200,58,.08);border-color:rgba(255,200,58,.6);color:var(--ac)}',
+    '.fh-btn.fh-gold{background:linear-gradient(180deg,#ffd25a,#e8a91c);border-color:#ffd25a;color:#2a1f10;font-weight:700}.fh-btn.fh-gold:hover:not(:disabled){color:#000;box-shadow:var(--glow)}',
+    '.fh-btn.fh-big{width:100%;padding:13px;font-size:18px}',
+    '.fh-btn.fh-ghost{background:none;border-color:transparent;color:var(--t3);padding-left:0}.fh-btn.fh-ghost:hover:not(:disabled){color:var(--ac);border-color:transparent}',
+    '.fh-btn.fh-danger:hover:not(:disabled),.fh-btn.fh-armed{border-color:var(--rd);color:var(--rd)}',
+    '.fh-seg{display:inline-flex;border:1px solid var(--ln);border-radius:3px;overflow:hidden;flex:none}',
+    '.fh-sg{padding:6px 14px;border:none;border-right:1px solid var(--ls);background:rgba(0,0,0,.18);color:var(--t2);font-size:14px;cursor:pointer;white-space:nowrap}.fh-sg:last-child{border-right:none}.fh-sg:hover{color:#fff}',
+    '.fh-sg.fh-on{background:var(--ac);color:#2a1f10;font-weight:700}.fh-sg .fh-n{margin-left:6px;opacity:.7}',
+    '.fh-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}',
+    '.fh-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:3px;background:rgba(0,0,0,.2);border:1px solid var(--ln);color:var(--t2);font-size:13px;cursor:pointer;white-space:nowrap}',
+    '.fh-chip.fh-ic{padding-left:4px}.fh-chip:hover:not(:disabled){border-color:rgba(255,200,58,.6);color:#fff}.fh-chip:disabled{opacity:.4;cursor:default}',
+    '.fh-chip.fh-on{border-color:var(--ac);color:var(--ac);background:rgba(255,200,58,.12)}.fh-chip .fh-n{color:var(--ac);font-weight:600}',
+    '.fh-chip.fh-add{border-style:dashed;color:var(--t3);background:none}',
+    '.fh-inp{font:inherit;font-size:14px;color:#fff;background:rgba(0,0,0,.35);border:1px solid var(--ln);border-radius:3px;padding:6px 10px;user-select:text}',
+    '.fh-inp:focus{outline:none;border-color:var(--ac)}.fh-inp.fh-small{font-size:13px;padding:4px 8px;width:100%}.fh-inp.fh-name{font-size:17px;font-weight:700;width:320px}',
+    '.fh-tog{width:40px;height:22px;padding:0;border-radius:11px;background:rgba(0,0,0,.35);border:1px solid var(--ln);position:relative;flex:none;cursor:pointer}',
+    '.fh-tog::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--t4);transition:left .15s}',
+    '.fh-tog.fh-on{background:rgba(255,200,58,.3);border-color:var(--ac)}.fh-tog.fh-on::after{left:21px;background:var(--ac)}',
+    '.fh-stepper{display:inline-flex;align-items:center;border:1px solid var(--ln);border-radius:3px;overflow:hidden;font-size:13px;flex:none}',
+    '.fh-stp{padding:1px 8px;color:var(--t3);background:rgba(0,0,0,.2);border:none;cursor:pointer}.fh-stp:hover:not(:disabled){color:var(--ac)}.fh-stp:disabled{opacity:.3;cursor:default}',
+    '.fh-stepper b{padding:1px 6px;color:var(--ac);font-weight:700;min-width:28px;text-align:center}',
+    '.fh-ib{width:20px;height:20px;padding:0;border-radius:3px;border:1px solid var(--ls);background:rgba(0,0,0,.2);color:var(--t3);font-size:11px;line-height:18px;text-align:center;cursor:pointer}',
+    '.fh-ib:hover:not(:disabled){border-color:var(--ac);color:var(--ac)}.fh-ib:disabled{opacity:.2;cursor:default}.fh-ib.fh-del:hover{border-color:var(--rd);color:var(--rd)}',
+    '.fh-pill{display:inline-block;flex:none;padding:2px 9px;border-radius:10px;font-size:12px;white-space:nowrap;background:rgba(255,255,255,.08);color:var(--t2);font-weight:400}',
+    '.fh-p-ready{background:var(--ac);color:#2a1f10;font-weight:700}.fh-p-urgent{background:rgba(229,115,115,.22);color:var(--rd)}.fh-p-warn{background:rgba(255,167,38,.18);color:var(--or)}',
+    '.fh-p-good{background:rgba(140,197,106,.18);color:var(--gr)}.fh-p-dim{background:rgba(255,255,255,.05);color:var(--t4)}',
+    '.fh-bar{display:inline-block;width:150px;height:6px;border-radius:3px;background:rgba(0,0,0,.4);overflow:hidden;flex:none}.fh-bar i{display:block;height:100%;background:var(--gr)}',
+    '.fh-bar.fh-gold i{background:var(--ac)}.fh-bar.fh-red i{background:var(--rd)}.fh-bar.fh-wide{width:100%;height:8px}',
+    '.fh-tool{display:flex;align-items:center;gap:10px}.fh-tool .fh-inp{margin-left:auto;width:280px}',
+    '.fh-grp{margin-bottom:14px}',
+    '.fh-grp-h{display:flex;align-items:center;gap:10px;margin:0 2px 6px;font-size:13px;color:var(--t3)}.fh-grp-h b{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#fff}.fh-grp-h .fh-r{margin-left:auto}',
+    '.fh-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}',
+    '.fh-row{position:relative;display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:3px;background:var(--cf);border:1px solid transparent;cursor:pointer;min-height:62px}',
+    '.fh-row:hover{background:rgba(92,76,56,.7)}.fh-row.fh-sel-on{border-color:var(--ac);box-shadow:var(--glow)}',
+    '.fh-row.fh-e-gold::before,.fh-row.fh-e-red::before,.fh-row.fh-e-or::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:2px;background:var(--ac)}',
+    '.fh-row.fh-e-red::before{background:var(--rd)}.fh-row.fh-e-or::before{background:var(--or)}',
+    '.fh-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}',
+    '.fh-nm{font-size:15px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fh-nm small{font-size:12px;color:var(--t3);margin-left:8px}',
+    '.fh-row.fh-blank .fh-nm{font-style:italic;color:var(--t2)}',
+    '.fh-meta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden}',
+    '.fh-end{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}',
+    '.fh-wh{font-size:13px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.fh-todo{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:3px;background:var(--cf);margin-bottom:6px;cursor:pointer}.fh-todo:hover{background:rgba(92,76,56,.7)}',
+    '.fh-todo .fh-t{flex:1;min-width:0;font-size:15px;color:#fff}.fh-todo .fh-t small{display:block;font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.fh-cnt{font-size:20px;font-weight:700;color:var(--ac);min-width:32px;text-align:right}.fh-cnt.fh-red{color:var(--rd)}.fh-cnt.fh-dim{color:var(--t4)}',
+    '.fh-fc{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--ls);font-size:13px;cursor:pointer}.fh-fc:hover{background:rgba(255,255,255,.03)}',
+    '.fh-tm{font-family:Consolas,monospace;color:var(--t2)}.fh-fc .fh-wh{font-size:12px}',
+    '.fh-cta{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--ls)}.fh-cap{font-size:13px;color:var(--t3);text-align:center}',
+    '.fh-subacts{display:flex;gap:8px}.fh-subacts .fh-btn{flex:1}',
+    '.fh-det-hd{display:flex;align-items:center;gap:14px;margin:4px 0 12px}.fh-det-hd .fh-nm{font-size:22px;font-weight:700}',
+    '.fh-tl{margin-bottom:12px}.fh-tl-lab{display:flex;justify-content:space-between;font-size:12px;color:var(--t3);margin-top:4px}',
+    '.fh-kv{display:grid;grid-template-columns:130px minmax(0,1fr);gap:6px 12px;font-size:14px;margin-bottom:12px}.fh-kv .fh-k{color:var(--t3)}.fh-kv b{font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap}',
+    '.fh-nrow{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 8px;border-radius:3px}',
+    '.fh-nrow.fh-next{background:rgba(140,197,106,.13)}.fh-nrow.fh-out{opacity:.45}.fh-ordn{width:16px;text-align:center;color:var(--t4);font-size:12px}',
+    '.fh-pcard{padding:10px 12px;border-radius:3px;background:var(--cf);border:1px solid transparent;margin-bottom:6px;cursor:pointer}.fh-pcard:hover{background:rgba(92,76,56,.7)}',
+    '.fh-pcard.fh-on{border-color:var(--ac);box-shadow:var(--glow)}.fh-pcard .fh-nm{font-size:16px;font-weight:700}',
+    '.fh-ics{display:flex;gap:3px;margin-top:6px}',
+    '.fh-hint{font-size:12px;color:var(--t3);line-height:1.45;padding:2px}',
+    '.fh-edhd{display:flex;align-items:center;gap:10px;margin-bottom:10px}',
+    '.fh-cols3{display:grid;gap:10px;margin-bottom:10px}',
+    '.fh-colh{display:flex;font-size:13px;font-weight:700;color:var(--t2);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}',
+    '.fh-fb{display:flex;flex-direction:column;gap:4px;min-width:0;padding:8px;border-radius:3px;background:rgba(0,0,0,.18);border:1px solid var(--ls)}',
+    '.fh-it{display:grid;grid-template-columns:18px 24px minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 7px;border-radius:3px;background:var(--cf);border-left:2px solid transparent}',
+    '.fh-it.fh-short{border-left-color:var(--rd)}.fh-it.fh-go{border-left-color:var(--gr)}.fh-it.fh-out{opacity:.55}',
+    '.fh-o{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,200,58,.18);color:var(--ac);font-weight:700;font-size:11px}.fh-go .fh-o{background:rgba(140,197,106,.3);color:var(--gr)}',
+    '.fh-sinfo{min-width:0}.fh-sinfo b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.fh-sinfo small{display:block;font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.fh-sctl{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.fh-moves{display:flex;gap:3px}',
-    '.fh-dash{font-size:13px;color:#b8b8b8;padding:6px;border-radius:7px;border:1px dashed rgba(255,255,255,.18);background:none;cursor:pointer;text-align:center}',
-    '.fh-dash:hover,.fh-dash.fh-on{color:#EBA308;border-color:rgba(235,163,8,.6)}',
-    '.fh-picker{display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:7px;background:rgba(0,0,0,.35);border:1px solid rgba(235,163,8,.4)}',
-    '.fh-prow{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px;border-radius:5px;cursor:pointer}.fh-prow:hover{background:rgba(235,163,8,.12)}.fh-prow .fh-grow{flex:1;min-width:0}',
-    '.fh-chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 4px}',
-    '.fh-link{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 4px;border-radius:7px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);font-size:13px}',
-    '.fh-link.fh-out .fh-lname{text-decoration:line-through;color:#888}.fh-arrow{color:#888}',
-    '.fh-ctable{display:flex;flex-direction:column;gap:4px}',
-    '.fh-crow{display:grid;grid-template-columns:190px minmax(0,1fr) 170px 120px 22px;gap:10px;align-items:center;padding:7px 10px;border-radius:7px;background:rgba(255,255,255,.04);font-size:13px}',
-    '.fh-crow.fh-chead{background:none;padding:2px 10px;color:#888;font-size:11px;letter-spacing:1px;text-transform:uppercase}',
-    '.fh-cname{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}',
-    '.fh-plan{width:360px;flex:none;padding:0 12px 14px;display:flex;flex-direction:column;gap:8px}',
-    '.fh-prow2{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:7px;background:rgba(255,255,255,.04);font-size:13px}.fh-prow2 .fh-grow{flex:1;min-width:0}',
-    '.fh-robots{flex:1;padding:12px;display:flex;flex-direction:column;gap:12px}',
-    '.fh-robot{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:12px 14px;background:rgba(255,255,255,.025);display:flex;flex-direction:column;gap:8px}',
-    '.fh-rhead{display:flex;gap:14px;align-items:center}',
-    '.fh-rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(620px,1fr));gap:12px;align-items:start}',
-    '.fh-tier{display:grid;grid-template-columns:100px minmax(0,1.2fr) minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 10px;border-radius:7px;background:rgba(255,255,255,.04);font-size:13px}',
-    '.fh-tier.fh-thead{background:none;padding:2px 10px;color:#888;font-size:11px;letter-spacing:1px;text-transform:uppercase}',
+    '.fh-picker{display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:3px;background:rgba(0,0,0,.35);border:1px solid rgba(255,200,58,.4)}',
+    '.fh-plist{display:flex;flex-direction:column;gap:2px}',
+    '.fh-prow{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px;border-radius:3px;cursor:pointer}.fh-prow:hover{background:rgba(255,200,58,.12)}',
+    '.fh-chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}',
+    '.fh-link{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 4px;border-radius:3px;background:var(--cf);border:1px solid var(--ls);font-size:13px}',
+    '.fh-link.fh-out .fh-lname{text-decoration:line-through;color:var(--t4)}.fh-arrow{color:var(--t4)}',
+    '.fh-ctable{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}',
+    '.fh-crow{display:grid;grid-template-columns:150px minmax(0,1fr) 150px 100px 22px;gap:10px;align-items:center;padding:7px 10px;border-radius:3px;background:var(--cf);font-size:13px}',
+    '.fh-crow.fh-chead{background:none;padding:2px 10px;color:var(--t4);font-size:11px;letter-spacing:1px;text-transform:uppercase}',
+    '.fh-crow .fh-chips{margin:0}.fh-cname{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}',
+    '.fh-setrow{display:flex;align-items:center;gap:14px;padding:10px 14px;border-radius:3px;background:var(--cf);margin-bottom:6px}',
+    '.fh-lbl{flex:1;min-width:0}.fh-lbl b{display:block;font-size:14px;font-weight:600;color:#fff}.fh-lbl small{display:block;font-size:12px;color:var(--t3);margin-top:2px}',
+    '.fh-warnbox{padding:10px 14px;border-radius:3px;border:1px solid rgba(255,167,38,.55);background:rgba(255,167,38,.10);color:#ffcc80;font-size:14px;margin-bottom:8px;line-height:1.5}',
+    '.fh-prow2{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:3px;background:var(--cf);font-size:13px;margin-bottom:4px}',
+    '.fh-trow{display:grid;gap:6px;align-items:center;padding:5px 4px;border-bottom:1px solid var(--ls);font-size:13px}',
+    '.fh-trow.fh-thead{color:var(--t4);font-size:12px;white-space:nowrap}.fh-trow .fh-tc{text-align:right;font-variant-numeric:tabular-nums}',
+    '.fh-rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(600px,1fr));gap:12px;align-items:start}',
+    '.fh-rcard{padding:12px 14px;border-radius:3px;background:var(--cd);border:1px solid var(--ls)}',
+    '.fh-rcard .fh-hd{display:flex;align-items:center;gap:12px;margin-bottom:10px}.fh-rcard .fh-hd .fh-nm{font-size:18px;font-weight:700}',
+    '.fh-tier{display:grid;grid-template-columns:110px minmax(0,1.2fr) minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 10px;border-radius:3px;background:rgba(0,0,0,.18);margin-bottom:4px;font-size:13px}',
+    '.fh-tier.fh-thead{background:none;color:var(--t4);font-size:12px;padding:2px 10px}',
     '.fh-tcell{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}',
-    '.fh-tedit{padding:10px 12px;border-radius:7px;border:1px solid rgba(235,163,8,.5);background:rgba(235,163,8,.05);display:flex;flex-direction:column;gap:8px}',
-    '.fh-stock{width:620px;flex:none;padding:0 10px 12px}',
-    '.fh-trow{display:grid;gap:8px;align-items:center;padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px}',
-    '.fh-trow.fh-thead{color:#888;font-size:12px;white-space:nowrap}.fh-trow .fh-tc{text-align:right;font-variant-numeric:tabular-nums}',
-    '.fh-time{flex:1;min-width:0;padding:0 16px 14px}',
-    '.fh-axis{position:relative;height:28px;margin:6px 0 0;border-bottom:1px solid rgba(255,255,255,.14)}',
-    '.fh-tick{position:absolute;top:6px;transform:translateX(-50%);font-size:11px;color:#888;white-space:nowrap}',
-    '.fh-lanes{position:relative;margin-top:12px}',
-    '.fh-gline{position:absolute;top:-12px;bottom:0;width:1px;background:rgba(255,255,255,.05)}.fh-gline.fh-now{width:2px;background:#EBA308}',
-    '.fh-ev{position:absolute;display:inline-flex;align-items:center;gap:6px;padding:2px 9px 2px 3px;border-radius:12px;font-size:12px;white-space:nowrap;background:rgba(18,18,20,.95);border:1px solid rgba(124,179,66,.6);cursor:pointer}',
-    '.fh-ev.fh-rot{border-color:rgba(229,57,53,.75)}.fh-ev .fh-dim{font-size:11px}',
-    '.fh-icon{flex:none;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(255,255,255,.05);overflow:hidden;color:rgba(238,238,238,.7);font-weight:600}',
+    '.fh-tedit{padding:10px 12px;margin-bottom:6px;border-radius:3px;border:1px solid rgba(255,200,58,.5);background:rgba(255,200,58,.05);display:flex;flex-direction:column;gap:6px}',
+    '.fh-row2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
+    '.fh-icon{flex:none;display:flex;align-items:center;justify-content:center;border-radius:3px;background:rgba(0,0,0,.25);overflow:hidden;color:var(--t2);font-weight:600}',
     '.fh-icon img{width:100%;height:100%;object-fit:contain}',
-    '.fh-i56{width:56px;height:56px;font-size:20px}.fh-i40{width:40px;height:40px;font-size:15px}.fh-i30{width:30px;height:30px;font-size:12px}.fh-i22{width:22px;height:22px;font-size:11px}.fh-i18{width:18px;height:18px;font-size:10px;border-radius:4px}',
-    '.fh-empty{padding:24px;color:#888;font-size:14px;text-align:center}',
-    '.fh-lockmsg{padding:10px 14px;border-radius:7px;border:1px solid rgba(255,193,7,.75);background:rgba(255,193,7,.12);color:#EBA308;font-size:14px}',
-    '.fh-foot{display:flex;gap:12px;font-size:13px;color:rgba(238,238,238,.7);align-items:center}.fh-status{flex:1}',
-    '.fh-kbd{font-size:12px;color:#ccc;border:1px solid #555;border-bottom-width:2px;border-radius:4px;padding:0 6px;margin:0 4px}',
-    '#fh-toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:2147483001;pointer-events:none;display:none;max-width:640px;text-align:center;padding:10px 18px;border-radius:8px;border:1px solid rgba(255,193,7,.75);background:linear-gradient(180deg,rgba(30,30,33,.94),rgba(18,18,20,.96));color:#eee;font-family:"Microsoft YaHei","PingFang SC",sans-serif;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.6)}'
+    '.fh-i56{width:64px;height:64px;font-size:22px}.fh-i40{width:42px;height:42px;font-size:15px}.fh-i30{width:30px;height:30px;font-size:12px}.fh-i22{width:22px;height:22px;font-size:11px}.fh-i18{width:18px;height:18px;font-size:10px}',
+    '.fh-none{padding:24px;color:var(--t3);font-size:14px;text-align:center}',
+    '.fh-note{font-size:12px;color:var(--t3);padding:4px 2px 8px}',
+    '.fh-banner{padding:8px 12px;margin-top:6px;border-radius:3px;border:1px solid rgba(255,167,38,.55);background:rgba(255,167,38,.10);color:#ffcc80;font-size:13px}',
+    '.fh-lockmsg{padding:12px 16px;border-radius:3px;border:1px solid rgba(255,200,58,.6);background:rgba(255,200,58,.10);color:var(--ac);font-size:15px}',
+    '.fh-grow{flex:1;min-width:0}.fh-dim{color:var(--t3);font-size:12px}.fh-red{color:var(--rd)}.fh-green{color:var(--gr)}.fh-or{color:var(--or)}',
+    '#fh-toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);z-index:2147483001;pointer-events:none;display:none;max-width:640px;text-align:center;padding:10px 18px;border-radius:4px;border:1px solid rgba(255,200,58,.7);background:linear-gradient(180deg,#3a3129,#241e18);color:#f0e8d8;font-family:"Microsoft YaHei","PingFang SC",sans-serif;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.6)}'
   ].join('\n');
 
   function build() {
@@ -545,22 +525,25 @@
     addStyle();
 
     var root = el('div');
-    var plate = el('div', 'fh-plate');
-    var head = el('div', 'fh-head');
-    var sum = el('div', 'fh-sum');
+    var win = el('div', 'fh-win');
+    var head = el('div', 'fh-whd');
+    var title = el('div', 'fh-ttl', 'Farm Hub');
+    var sum = el('small');
     var tabs = el('div', 'fh-tabs');
-    var body = el('div', 'fh-body');
-    var foot = el('div', 'fh-foot');
+    var body = el('div', 'fh-wbody');
+    var foot = el('div', 'fh-wfoot');
     var status = el('div', 'fh-status');
     var keys = el('div');
+    var esc = el('div');
     var toast = el('div');
 
     root.id = 'fh-root';
     toast.id = 'fh-toast';
-    put(head, el('div', 'fh-title', 'Farm Hub'), sum, button('\u00d7', 'close', null, true, 'fh-x'));
-    put(foot, status, keys);
-    put(plate, head, tabs, body, foot);
-    root.appendChild(plate);
+    title.appendChild(sum);
+    put(head, put(el('div', 'fh-logo'), sprout(document)), title, tabs, plainButton('fh-x', '×', 'close', null, true));
+    put(foot, status, keys, esc);
+    put(win, head, body, foot);
+    root.appendChild(win);
     document.body.appendChild(root);
     document.body.appendChild(toast);
 
@@ -569,7 +552,7 @@
     root.addEventListener('focusin', onFocus);
     root.addEventListener('focusout', onBlur);
     root.addEventListener('keydown', onKey);
-    // Clicks inside the plate must not reach the game pages underneath; the mask itself closes nothing on purpose.
+    // Clicks inside the window must not reach the game pages underneath; the mask itself closes nothing on purpose.
     root.addEventListener('mousedown', function (e) { e.stopPropagation(); });
     // A broken icon path swaps to the first-letter placeholder; error events do not bubble, so capture them.
     root.addEventListener('error', function (e) {
@@ -578,7 +561,7 @@
       if (img && img.tagName === 'IMG' && img.parentNode) img.parentNode.textContent = img.getAttribute('data-letter') || '?';
     }, true);
 
-    ui = { root: root, sum: sum, tabs: tabs, body: body, status: status, keys: keys, toast: toast, live: [], cards: null };
+    ui = { root: root, sum: sum, tabs: tabs, body: body, status: status, keys: keys, esc: esc, toast: toast, live: [], rows: null, side: null };
   }
 
   // The style outlives a lost window root, so a rebuild must not stack another copy of it.
@@ -668,6 +651,10 @@
     if (field === 'name' && state.draft) {
       state.draft.name = e.target.value;
       markDirty();
+    } else if (field === 'potsearch') {
+      state.potSearch = e.target.value;
+
+      if (ui.potList) fillPotList();
     } else if (field === 'addsearch') {
       state.addSearch = e.target.value;
       fillSeedAdd();
@@ -780,13 +767,6 @@
     return [5, 0];
   }
 
-  function ripeness(pot) {
-    if (pot.state === 'ripe') return [0, pot.rotIn == null ? 1e6 : pot.rotIn];
-    if (pot.state === 'growing') return [1, pot.ripeIn == null ? 1e6 : pot.ripeIn];
-
-    return [2 + STATE_ORDER.indexOf(pot.state), 0];
-  }
-
   function compareKeys(a, b) {
     return a[0] - b[0] || a[1] - b[1];
   }
@@ -814,7 +794,8 @@
     var scrolls = keepScrolls();
 
     ui.live = [];
-    ui.cards = null;
+    ui.rows = null;
+    ui.side = null;
     renderHead();
     renderTabs();
     ui.body.textContent = '';
@@ -823,7 +804,6 @@
     else if (!state.data.ready) ui.body.appendChild(lockMessage(state.data.note));
     else if (state.tab === 'presets') renderPresets();
     else if (state.tab === 'robots') renderRobots();
-    else if (state.tab === 'forecast') renderForecast();
     else renderPots();
 
     restoreScrolls(scrolls);
@@ -865,7 +845,7 @@
   }
 
   function scroller(key, className) {
-    var node = el('div', 'fh-well' + (className ? ' ' + className : ''));
+    var node = el('div', 'fh-scroll' + (className ? ' ' + className : ''));
     node.setAttribute('data-scroll', key);
 
     return node;
@@ -881,25 +861,17 @@
 
   function renderHead() {
     var c = state.data.counts;
-    var parts = [];
 
     ui.sum.textContent = '';
 
     if (!state.data.ready || !c) return;
 
-    parts.push(sayCount('sumPots', c.total, ''));
+    var need = pots().filter(needsYou).length;
 
-    if (c.ripe) parts.push(sayCount('cRipe', c.ripe, 'fh-cg'));
-    if (c.rot) parts.push(sayCount('cRot', c.rot, 'fh-cr'));
-    if (c.pests) parts.push(sayCount('cPests', c.pests, 'fh-ca'));
-    if (c.dry) parts.push(sayCount('cDry', c.dry, 'fh-cb'));
-    if (c.empty) parts.push(sayCount('cEmpty', c.empty, ''));
+    ui.sum.appendChild(text(say('sumPots', c.total)));
 
-    parts.forEach(function (part, i) {
-      if (i) ui.sum.appendChild(el('span', 'fh-dot', '\u00b7'));
-
-      ui.sum.appendChild(part);
-    });
+    if (need) put(ui.sum, text(' · '), sayCount('cNeed', need, ''));
+    if (c.empty) put(ui.sum, text(' · ' + say('cEmpty', c.empty)));
   }
 
   function renderTabs() {
@@ -914,12 +886,14 @@
     });
   }
 
+  // The footer names the game's Tend Garden key too, unless Farm Hub's own key is that same key.
   function renderKeys() {
     ui.keys.textContent = '';
 
-    if (state.key) put(ui.keys, text(say('hotkey')), el('span', 'fh-kbd', state.key), text('/ '));
+    if (state.key !== GAME_TEND_KEY) put(ui.keys, el('span', 'fh-kbd', GAME_TEND_KEY), text(say('keyTend')), state.key ? text(' · ') : null);
+    if (state.key) put(ui.keys, el('span', 'fh-kbd', state.key), text(say('keyThis')));
 
-    ui.keys.appendChild(text(say('escClose')));
+    ui.esc.textContent = say('escClose');
   }
 
   function pickTab(tab) {
@@ -932,34 +906,30 @@
   // ---------- Pots tab ----------
 
   function renderPots() {
-    var mid = el('div', 'fh-mid');
-    var detail = scroller('detail', 'fh-detail');
+    var main = el('div', 'fh-main');
+    var search = el('input', 'fh-inp');
 
-    ui.acts = el('div', 'fh-acts');
-    ui.potList = potList();
-    ui.detail = detail;
-    fillActs();
-    fillDetail();
-    put(mid, ui.acts, ui.potList);
-    put(ui.body, potSide(), mid, detail);
+    search.setAttribute('data-field', 'potsearch');
+    search.setAttribute('placeholder', say('search'));
+    search.value = state.potSearch;
+    ui.potList = scroller('pots', 'fh-grow');
+    ui.side = el('div', 'fh-side');
+    put(main, put(el('div', 'fh-tool'), segment(SHOWS.map(function (s) {
+      return [s[0], say(s[1]), pots().filter(function (p) { return shows(p, s[0]); }).length];
+    }), state.show, 'show'), search), ui.potList);
+    fillPotList();
+    fillSide();
+    put(ui.body, main, ui.side);
   }
 
   function shows(pot, show) {
     switch (show) {
-      case 'ripe':
-        return pot.state === 'ripe';
-      case 'rot':
-        return !!pot.rotSoon;
-      case 'pests':
-        return hasProblem(pot, ['pests', 'weeds']);
-      case 'dry':
-        return hasProblem(pot, ['dry']);
-      case 'care':
-        return needsCare(pot);
+      case 'needs':
+        return needsYou(pot);
       case 'empty':
         return pot.state === 'empty';
-      case 'norobot':
-        return !pot.robot;
+      case 'growing':
+        return pot.state === 'growing';
       default:
         return true;
     }
@@ -969,127 +939,38 @@
     return pot.floor + '|' + pot.area;
   }
 
-  function isShown(pot) {
-    return shows(pot, state.show) && (!state.crop || pot.plant === state.crop) && (!state.room || roomKey(pot) === state.room);
+  function matchesSearch(pot) {
+    var query = state.potSearch.trim().toLowerCase();
+
+    if (!query) return true;
+
+    return [potName(pot), kindOf(pot.kind).name, pot.room || ''].some(function (words) { return String(words).toLowerCase().indexOf(query) >= 0; });
   }
 
-  // Filters with their counts, the crops and rooms there are, and how the list is grouped and sorted.
-  function potSide() {
-    var side = scroller('side', 'fh-side');
-    var showChips = el('div', 'fh-chips');
-    var cropChips = el('div', 'fh-chips');
-    var roomChips = el('div', 'fh-chips');
-    var crops = {};
-    var rooms = [];
+  // Rooms keep the order the plugin sends (floor, then room), so they read top floor to bottom as the house does;
+  // inside a room the pots that need the player soonest come first.
+  function fillPotList() {
+    var well = ui.potList;
+    var shown = pots().filter(function (p) { return shows(p, state.show) && matchesSearch(p); });
+    var groups = [];
 
-    SHOWS.forEach(function (s) {
-      var count = pots().filter(function (p) { return shows(p, s[0]); }).length;
-      var node = chip(say(s[1]), 'filter', s[0], state.show === s[0], count);
+    well.textContent = '';
+    ui.rows = {};
 
-      if (!count && state.show !== s[0]) setClass(node, 'fh-zero', true);
-
-      showChips.appendChild(node);
-    });
-
-    pots().forEach(function (p) {
-      if (p.plant) crops[p.plant] = (crops[p.plant] || 0) + 1;
-      if (!find(rooms, function (r) { return r.key === roomKey(p); })) rooms.push({ key: roomKey(p), pot: p, count: 0 });
-
-      find(rooms, function (r) { return r.key === roomKey(p); }).count++;
-    });
-    Object.keys(crops).map(function (id) { return cropOf(+id); }).sort(byName).forEach(function (crop) {
-      cropChips.appendChild(chip(crop.name, 'fcrop', crop.id, state.crop === crop.id, crops[crop.id], crop));
-    });
-    rooms.forEach(function (r) { roomChips.appendChild(chip(roomTitle(r.pot), 'froom', r.key, state.room === r.key, r.count)); });
-
-    put(side, section(say('show')), showChips);
-
-    if (rooms.length > 1) put(side, section(say('rooms')), roomChips);
-
-    put(side, section(say('groupBy')), segment(GROUPS.map(function (g) { return [g[0], say(g[1])]; }), state.group, 'group'),
-      section(say('sortBy')), segment(SORTS.map(function (s) { return [s[0], say(s[1])]; }), state.sort, 'sort'));
-
-    if (cropChips.firstChild) put(side, section(say('crops')), cropChips);
-
-    return side;
-  }
-
-  function roomTitle(pot) {
-    return (pot.room || say('otherRoom')) + ' \u00b7 ' + say('floor', pot.floor);
-  }
-
-  // The big buttons, or with pots checked, what can be done to just those.
-  function fillActs() {
-    var ids = checkedIds();
-    var c = state.data.counts || {};
-
-    ui.acts.textContent = '';
-    setClass(ui.acts, 'fh-bulk', ids.length > 0);
-    setClass(ui.potList, 'fh-checking', ids.length > 0);
-
-    if (!ids.length) {
-      // The bulk buttons stay pressable with nothing to do: a press then says so.
-      put(ui.acts, button(say('plantAll', c.plant || 0), 'plantall', null, true, 'fh-hot'), button(say('fertAll', c.fert || 0), 'fertall', null, true),
-        button(say('tendAll'), 'tendall', null, true));
+    if (!pots().length) {
+      well.appendChild(el('div', 'fh-none', say('empty')));
 
       return;
     }
 
-    var list = ids.join(',');
-
-    put(ui.acts, el('b', '', say('selected', ids.length)), button(say('plant'), 'plant', list, true, 'fh-sm fh-hot'), button(say('fertilize'), 'fert', list, true, 'fh-sm'),
-      el('span', 'fh-dim', say('assignTo')), chip(say('useDefault'), 'assign', '|' + list, false));
-    presets().forEach(function (p) { ui.acts.appendChild(chip(p.name, 'assign', p.id + '|' + list, false)); });
-    put(ui.acts, el('span', 'fh-grow'), button(say('clear'), 'clearchecks', null, true, 'fh-sm'));
-
-    if (!state.data.saved) {
-      ui.acts.querySelectorAll('[data-act]').forEach(function (node) {
-        if (node.getAttribute('data-act') === 'assign') node.disabled = true;
-      });
-      ui.acts.appendChild(el('span', 'fh-dim', say('noSaveYet')));
-    }
-  }
-
-  function checkedIds() {
-    return Object.keys(state.checks).filter(function (id) { return state.checks[id] && potById(id); });
-  }
-
-  function potList() {
-    var well = scroller('pots');
-    var shown = pots().filter(isShown);
-
-    ui.cards = {};
-
-    if (!pots().length) {
-      well.appendChild(el('div', 'fh-empty', say('empty')));
-
-      return well;
-    }
-
     if (!shown.length) {
-      well.appendChild(el('div', 'fh-empty', say('noMatch')));
+      well.appendChild(el('div', 'fh-none', say('noMatch')));
 
-      return well;
+      return;
     }
 
-    groupsOf(shown).forEach(function (group) {
-      var cards = el('div', 'fh-cards');
-
-      var shared = headPreset(group);
-
-      sorted(group.pots).forEach(function (pot) { cards.appendChild(potCard(pot, shared)); });
-      put(well, groupHead(group), cards);
-    });
-
-    return well;
-  }
-
-  // Groups keep the order the plugin sends (floor, then room), so rooms read top floor to bottom as the house does.
-  function groupsOf(list) {
-    var groups = [];
-
-    list.forEach(function (pot) {
-      var key = groupKey(pot);
+    shown.forEach(function (pot) {
+      var key = roomKey(pot);
       var group = find(groups, function (g) { return g.key === key; });
 
       if (!group) groups.push(group = { key: key, first: pot, pots: [] });
@@ -1097,112 +978,87 @@
       group.pots.push(pot);
     });
 
-    if (state.group === 'state') groups.sort(function (a, b) { return STATE_ORDER.indexOf(a.key) - STATE_ORDER.indexOf(b.key); });
-    if (state.group === 'crop') groups.sort(function (a, b) { return (a.key === 0) - (b.key === 0) || byName(cropOf(a.key), cropOf(b.key)); });
+    groups.forEach(function (group) {
+      var grid = el('div', 'fh-grid2');
 
-    return groups;
-  }
-
-  function groupKey(pot) {
-    if (state.group === 'crop') return pot.plant || 0;
-    if (state.group === 'state') return pot.state;
-
-    return roomKey(pot);
+      sorted(group.pots).forEach(function (pot) { grid.appendChild(potRow(pot)); });
+      well.appendChild(put(el('div', 'fh-grp'), groupHead(group), grid));
+    });
   }
 
   function groupHead(group) {
     var pot = group.first;
-    var right = el('span', 'fh-r', say('nPots', group.pots.length));
-    var head;
+    var preset = presetById(pot.preset);
+    var where = say('floor', pot.floor) + (pot.floor === state.data.floor ? ' (' + say('here') + ')' : '') + ' · ' + (group.pots.length === 1 ? say('onePot') : say('nPots', group.pots.length));
+    var presetChip = preset ? chip(preset.name, 'editpreset', preset.id, false) : null;
 
-    if (state.group === 'crop') head = section(pot.plant ? cropOf(pot.plant).name : say('emptyPots'), right);
-    else if (state.group === 'state') head = section(say(STATE_WORD[pot.state] || pot.state), right);
-    else {
-      var preset = headPreset(group);
+    if (presetChip) setClass(presetChip, 'fh-r', true);
 
-      head = section(roomTitle(pot), right);
-
-      if (pot.floor === state.data.floor) head.insertBefore(badge(say('here'), 'fh-b-amber'), right);
-      if (preset) right.textContent = say('nPots', group.pots.length) + ' \u00b7 ' + preset.name;
-    }
-
-    return head;
-  }
-
-  // A room group's header names its first pot's preset, so cards with that preset need not repeat it.
-  function headPreset(group) {
-    return state.group === 'room' ? presetById(group.first.preset) : null;
+    return put(el('div', 'fh-grp-h'), el('b', '', pot.room || say('otherRoom')), el('span', '', where), presetChip);
   }
 
   function sorted(list) {
     var keyed = list.map(function (pot, i) { return { pot: pot, i: i }; });
 
-    keyed.sort(function (a, b) {
-      var order = 0;
-
-      if (state.sort === 'rot') order = compareKeys(urgency(a.pot), urgency(b.pot));
-      else if (state.sort === 'ripe') order = compareKeys(ripeness(a.pot), ripeness(b.pot));
-      else order = byName({ name: potName(a.pot) }, { name: potName(b.pot) });
-
-      return order || a.i - b.i;
-    });
+    keyed.sort(function (a, b) { return compareKeys(urgency(a.pot), urgency(b.pot)) || a.i - b.i; });
 
     return keyed.map(function (k) { return k.pot; });
   }
 
-  function stateBadge(pot) {
-    return badge(say(STATE_WORD[pot.state] || pot.state), STATE_BADGE[pot.state]);
+  function edgeClass(pot) {
+    if (pot.rotSoon || pot.state === 'withered' || pot.state === 'poor') return ' fh-e-red';
+    if ((pot.chore && pot.chore !== 'harvest') || (pot.problems || []).length) return ' fh-e-or';
+    if (pot.state === 'ripe') return ' fh-e-gold';
+
+    return '';
   }
 
-  function potBadges(pot, line) {
-    if (pot.rotSoon) line.appendChild(badge(say('rotSoon'), 'fh-b-red'));
+  function potRow(pot) {
+    var kind = kindOf(pot.kind);
+    var crop = pot.plant ? cropOf(pot.plant) : null;
+    var row = act(el('div', 'fh-row' + edgeClass(pot) + (crop ? '' : ' fh-blank') + (pot.id === state.sel ? ' fh-sel-on' : '')), 'pick', pot.id);
+    var name = put(el('div', 'fh-nm'), text(crop ? crop.name : say('stEmpty')), el('small', '', kind.name));
+    var end = el('div', 'fh-end');
 
-    (pot.problems || []).forEach(function (p) { line.appendChild(badge(say(PROBLEM_WORD[p] || p), PROBLEM_BADGE[p])); });
+    end.appendChild(pot.state === 'empty' && pot.canPlant ? button(say('plant'), 'plant', pot.id, !pot.pending, 'fh-sm fh-q') : statePill(pot));
+    put(row, icon(crop || kind, 'fh-i40'), put(el('div', 'fh-mid'), name, metaLine(pot)), end);
+    ui.rows[pot.id] = row;
+
+    return row;
+  }
+
+  function metaLine(pot) {
+    var line = el('div', 'fh-meta');
+
+    if (pot.state === 'growing') put(line, progressBar(pot), live(el('span'), pot.id, growingText));
+    else if (pot.state === 'ripe') line.appendChild(live(el('span'), pot.id, ripeText));
+    else if (pot.state === 'empty') line.appendChild(nextPlantLine(pot));
+
+    if ((pot.problems || []).length) line.appendChild(el('span', 'fh-or', problemText(pot)));
+    if (pot.robot) line.appendChild(badge(say('robot'), 'fh-p-dim'));
+    if (pot.pending) line.appendChild(badge(say('queued'), 'fh-p-good'));
+    if (!pot.powered) line.appendChild(badge(say('unpowered'), 'fh-p-urgent'));
 
     return line;
   }
 
-  function progressBar(pot, width) {
-    var track = el('span', 'fh-track');
-    var fill = el('span', 'fh-fill');
+  function statePill(pot) {
+    if (pot.rotSoon) return badge(say('rotSoon'), 'fh-p-urgent');
+    if (pot.state === 'withered' || pot.state === 'poor') return badge(say(STATE_WORD[pot.state]), 'fh-p-urgent');
+    if (pot.chore && pot.chore !== 'harvest') return badge(say(CHORE_WORD[pot.chore]), 'fh-p-warn');
+    if (pot.state === 'ripe') return badge(say('stRipe'), 'fh-p-ready');
+    if (pot.state === 'growing') return badge(say('stGrowing'), 'fh-p-good');
 
-    if (width) track.style.width = width;
+    return badge(say(STATE_WORD[pot.state] || pot.state), 'fh-p-dim');
+  }
+
+  function progressBar(pot, isWide) {
+    var track = el('span', 'fh-bar' + (isWide ? ' fh-wide' : ''));
+    var fill = el('i');
 
     track.appendChild(fill);
 
     return live(track, pot.id, function (node, p) { fill.style.width = Math.max(0, Math.min(100, p.progress | 0)) + '%'; });
-  }
-
-  function potCard(pot, shared) {
-    var kind = kindOf(pot.kind);
-    var crop = pot.plant ? cropOf(pot.plant) : null;
-    var preset = presetById(pot.preset);
-    var isChecked = !!state.checks[pot.id];
-    var card = act(el('div', 'fh-card' + (pot.id === state.sel ? ' fh-sel' : '') + (pot.rotSoon ? ' fh-hot' : '')), 'pick', pot.id);
-    var check = act(el('button', 'fh-chk' + (isChecked ? ' fh-on' : ''), isChecked ? '\u2713' : ''), 'check', pot.id);
-    var main = put(el('div', 'fh-cmain'), potBadges(pot, put(el('div', 'fh-nm'), el('span', '', crop ? crop.name : say('stEmpty')), stateBadge(pot))),
-      timeLine(pot), el('div', 'fh-sub', preset && preset === shared ? kind.name : kind.name + ' \u00b7 ' + (preset ? preset.name : say('noPreset'))));
-    var right = el('div', 'fh-crt');
-
-    if (pot.robot) right.appendChild(badge(say('robot'), 'fh-b-blue'));
-    if (pot.pending) right.appendChild(badge(say('queued'), 'fh-b-green'));
-    if (!pot.powered) right.appendChild(badge(say('unpowered'), 'fh-b-red'));
-    if (pot.chore) right.appendChild(button(say(CHORE_WORD[pot.chore]), 'tend', pot.id, !pot.pending, 'fh-sm' + (pot.chore === 'harvest' ? ' fh-hot' : '')));
-
-    put(card, check, icon(crop || kind, 'fh-i40'), main, right);
-    ui.cards[pot.id] = card;
-
-    return card;
-  }
-
-  function timeLine(pot) {
-    var line = el('div', 'fh-ln');
-
-    if (pot.state === 'growing') return put(line, progressBar(pot), live(el('span'), pot.id, growingText));
-    if (pot.state === 'ripe') return put(line, live(el('span'), pot.id, ripeText));
-    if (pot.state === 'empty') return put(line, nextPlantLine(pot));
-
-    return line;
   }
 
   function growingText(node, pot) {
@@ -1221,81 +1077,151 @@
     return el('span', 'fh-green', say('nextShort', seedOf(pot.next.seed).name, pot.next.count));
   }
 
-  function fillDetail() {
-    var pot = potById(state.sel);
-    var well = ui.detail;
-
-    well.textContent = '';
-
-    if (pot) potDetail(well, pot);
-    else needsList(well);
-  }
-
-  // With no pot picked: everything waiting on the player, soonest first.
-  function needsList(well) {
-    var waiting = pots().filter(needsYou).sort(function (a, b) { return compareKeys(urgency(a), urgency(b)); });
-    var rows = el('div', 'fh-rows');
-
-    put(well, el('h4', 'fh-sect', say('needsYou')));
-
-    if (!waiting.length) well.appendChild(el('div', 'fh-empty', say('allFine')));
-
-    waiting.slice(0, MAX_NEEDS).forEach(function (pot) {
-      var what = pot.rotSoon ? live(el('span'), pot.id, ripeText) : el('span', 'fh-ca', pot.chore ? say(CHORE_WORD[pot.chore]) : problemText(pot));
-
-      rows.appendChild(put(act(el('div', 'fh-row'), 'pick', pot.id), icon(pot.plant ? cropOf(pot.plant) : kindOf(pot.kind), 'fh-i30'),
-        put(el('div', 'fh-grow'), el('div', '', potName(pot)), el('div', 'fh-dim', roomTitle(pot))), what));
-    });
-
-    put(well, rows, el('div', 'fh-note', say('pickPot')));
-  }
-
   function problemText(pot) {
     return (pot.problems || []).map(function (p) { return say(PROBLEM_WORD[p] || p); }).join(', ');
   }
 
-  function potDetail(well, pot) {
+  function roomTitle(pot) {
+    return (pot.room || say('otherRoom')) + ' · ' + say('floor', pot.floor);
+  }
+
+  // The right side: a picked pot's detail, else what needs the player.
+  function fillSide() {
+    var pot = potById(state.sel);
+
+    ui.side.textContent = '';
+
+    if (pot) potDetail(ui.side, pot);
+    else needsPanel(ui.side);
+  }
+
+  // Up to a few distinct names, then how many more.
+  function names(list) {
+    var seen = [];
+
+    list.forEach(function (n) {
+      if (n && seen.indexOf(n) < 0) seen.push(n);
+    });
+
+    return seen.slice(0, MAX_NAMES).join(', ') + (seen.length > MAX_NAMES ? ' +' + (seen.length - MAX_NAMES) : '');
+  }
+
+  function todo(count, title, sub, show, countClass) {
+    return put(act(el('div', 'fh-todo'), 'show', show), put(el('div', 'fh-t'), text(title), sub ? el('small', '', sub) : null), el('span', 'fh-cnt' + (countClass ? ' ' + countClass : ''), String(count)));
+  }
+
+  function needsPanel(side) {
+    var c = state.data.counts || {};
+    var harvest = pots().filter(function (p) { return p.chore === 'harvest'; });
+    var care = pots().filter(function (p) { return p.chore && p.chore !== 'harvest'; });
+    var spot = pots().filter(function (p) { return !p.chore && (p.problems || []).length; });
+    var jobs = harvest.length + care.length + spot.length;
+    var scroll = scroller('side', 'fh-grow');
+    var rotting = harvest.some(function (p) { return p.rotSoon; });
+
+    scroll.appendChild(section(say('needsYou'), el('span', 'fh-r', say('nJobs', jobs))));
+
+    if (harvest.length) scroll.appendChild(todo(harvest.length, say('tHarvest'), names(harvest.map(potName)), 'needs', rotting ? 'fh-red' : ''));
+    if (care.length) scroll.appendChild(todo(care.length, say('todoCare'), names(care.map(function (p) { return say(CHORE_WORD[p.chore]); })), 'needs'));
+    if (spot.length) scroll.appendChild(todo(spot.length, say('todoSpot'), names(spot.map(problemText)), 'needs'));
+    if (c.plant) scroll.appendChild(todo(c.plant, say('todoPlant'), '', 'empty'));
+    if (c.fert) scroll.appendChild(todo(c.fert, say('fertilize'), '', 'growing', 'fh-dim'));
+    if (!jobs && !c.plant && !c.fert) scroll.appendChild(el('div', 'fh-none', say('allFine')));
+
+    scroll.appendChild(section(say('comingUp')));
+    comingRows(scroll);
+    put(side, scroll, put(el('div', 'fh-cta'), button(say('tendAll', jobs + (c.plant || 0) + (c.fert || 0)), 'tendall', null, true, 'fh-gold fh-big'),
+      el('div', 'fh-cap', say('tendNote')),
+      put(el('div', 'fh-subacts'), button(say('plantAll', c.plant || 0), 'plantall', null, true), button(say('fertAll', c.fert || 0), 'fertall', null, true))));
+  }
+
+  // What ripens or rots in the next two days, soonest first; a row opens its pot.
+  function comingRows(well) {
+    var events = [];
+
+    pots().forEach(function (pot) {
+      if (pot.state === 'growing' && pot.ripeIn != null && pot.ripeIn <= FORECAST_HOURS) events.push({ pot: pot, at: pot.ripeIn, isRot: false });
+      if (pot.state === 'ripe' && pot.rotIn != null && pot.rotIn <= FORECAST_HOURS) events.push({ pot: pot, at: pot.rotIn, isRot: true });
+    });
+    events.sort(function (a, b) { return a.at - b.at; });
+
+    if (!events.length) well.appendChild(el('div', 'fh-none', say('nothingSoon')));
+
+    events.slice(0, MAX_COMING).forEach(function (e) {
+      var time = live(el('span', 'fh-tm'), e.pot.id, function (n, p) {
+        var h = e.isRot ? p.rotIn : p.ripeIn;
+
+        n.textContent = h != null ? say('inHours', hours(h)) : '-';
+      });
+
+      well.appendChild(put(act(el('div', 'fh-fc'), 'pickat', e.pot.id), time,
+        put(el('div', 'fh-cut'), text(potName(e.pot) + ' '), el('span', 'fh-wh', roomTitle(e.pot))),
+        e.isRot ? badge(say('rotsPill'), 'fh-p-urgent') : badge(say('readyPill'), 'fh-p-good')));
+    });
+  }
+
+  function potDetail(side, pot) {
     var kind = kindOf(pot.kind);
     var crop = pot.plant ? cropOf(pot.plant) : null;
-    var head = put(el('div', 'fh-dhead'), icon(crop || kind, 'fh-i56'),
-      put(el('div', 'fh-dname'), el('div', 'fh-big', crop ? crop.name : say('stEmpty')), el('div', 'fh-dim', kind.name + ' \u00b7 ' + roomTitle(pot))),
-      stateBadge(pot));
-    var acts = put(el('div', 'fh-bar'),
-      pot.chore ? button(say(CHORE_WORD[pot.chore]), 'tend', pot.id, !pot.pending, 'fh-hot') : null,
-      button(say('plant'), 'plant', pot.id, pot.canPlant),
-      button(say('fertilize'), 'fert', pot.id, (pot.nextFert || 0) > 0));
+    var scroll = scroller('detail', 'fh-grow');
+    var subs = el('div', 'fh-subacts');
 
-    put(well, head, acts, timingBox(pot), nextPlantingBox(pot, kind), presetBox(pot), kindBox(kind, pot));
+    put(scroll, button('‹ ' + say('backNeeds'), 'back', null, true, 'fh-ghost fh-sm'),
+      put(el('div', 'fh-det-hd'), icon(crop || kind, 'fh-i56'),
+        put(el('div', 'fh-mid'), el('div', 'fh-nm', crop ? crop.name : say('stEmpty')), el('div', 'fh-wh', kind.name + ' · ' + roomTitle(pot))), statePill(pot)));
+
+    if (pot.state === 'growing') {
+      scroll.appendChild(put(el('div', 'fh-tl'), progressBar(pot, true), put(el('div', 'fh-tl-lab'),
+        live(el('span'), pot.id, function (n, p) { n.textContent = say('grown') + ' ' + p.progress + '%'; }), live(el('span'), pot.id, growingText))));
+    }
+
+    put(scroll, section(say('timing')), timingGrid(pot, kind), section(say('thisPot')), presetPick(pot), section(say('nextPlanting')), nextPlantingList(pot, kind));
+
+    if (pot.canPlant) subs.appendChild(button(say('plant'), 'plant', pot.id, !pot.pending));
+    if ((pot.nextFert || 0) > 0) subs.appendChild(button(say('fertilize'), 'fert', pot.id, !pot.pending));
+
+    put(side, scroll, put(el('div', 'fh-cta'), pot.chore ? button(say(CHORE_WORD[pot.chore]), 'tend', pot.id, !pot.pending, 'fh-gold fh-big') : null,
+      subs.firstChild ? subs : null));
   }
 
   function kv(grid, key, value) {
-    put(grid, el('span', '', key), typeof value === 'string' ? el('b', '', value) : value);
+    put(grid, el('span', 'fh-k', key), typeof value === 'string' ? el('b', '', value) : value);
   }
 
-  function timingBox(pot) {
+  function timingGrid(pot, kind) {
     var grid = el('div', 'fh-kv');
-    var stateLine = potBadges(pot, put(el('b', 'fh-bar'), text(say(STATE_WORD[pot.state] || pot.state))));
+    var stateLine = put(el('b'), text(say(STATE_WORD[pot.state] || pot.state)));
+    var bonus = [];
 
+    if (pot.rotSoon) stateLine.appendChild(badge(say('rotSoon'), 'fh-p-urgent'));
+
+    (pot.problems || []).forEach(function (p) { stateLine.appendChild(badge(say(PROBLEM_WORD[p] || p), 'fh-p-warn')); });
     kv(grid, say('state'), stateLine);
 
-    if (pot.state === 'growing') {
-      kv(grid, say('grown'), put(el('b', 'fh-bar'), progressBar(pot, '160px'), live(el('span'), pot.id, function (n, p) { n.textContent = p.progress + '%'; })));
-      kv(grid, say('ripeIn'), live(el('b'), pot.id, function (n, p) { n.textContent = p.ripeIn != null ? hours(p.ripeIn) : '-'; }));
-    }
-
+    if (pot.state === 'growing') kv(grid, say('ripeIn'), live(el('b'), pot.id, function (n, p) { n.textContent = p.ripeIn != null ? hours(p.ripeIn) : '-'; }));
     if (pot.state === 'ripe') kv(grid, say('rotIn'), live(el('b'), pot.id, function (n, p) { n.textContent = p.rotIn != null ? hours(p.rotIn) : say('noRot'); n.className = p.rotSoon ? 'fh-red' : ''; }));
     if (pot.state !== 'empty') kv(grid, say('fertWord'), pot.fert ? fertOf(pot.fert).name : say('noFert'));
     if ((pot.nextFert || 0) > 0) kv(grid, say('fertNext'), fertOf(pot.nextFert).name);
     if (pot.pending) kv(grid, '', say('queued'));
 
-    return put(el('div', 'fh-box'), el('h4', '', say('timing')), grid);
+    if (kind.light) bonus.push(say('light', kind.light));
+    if (kind.heat) bonus.push(say('heat', kind.heat));
+    if (kind.faster) bonus.push(say('faster', Math.round(kind.faster * 100)));
+
+    kv(grid, say('size'), sizeName(kind.cap));
+    kv(grid, say('bonus'), bonus.length ? bonus.join(', ') : say('none'));
+
+    if (kind.power) kv(grid, say('power'), pot.powered ? say('ok') : say('unpowered'));
+    if (pot.robot) kv(grid, say('robot'), say('ok'));
+
+    return grid;
   }
 
   // The pot's preset order for its size, with what the player owns and the seed the next planting will use.
-  function nextPlantingBox(pot, kind) {
+  function nextPlantingList(pot, kind) {
     var preset = presetById(pot.preset);
     var steps = preset ? (preset.seeds || {})[kind.cap] || [] : [];
-    var box = put(el('div', 'fh-box'), el('h4', '', say('nextPlanting')));
+    var box = el('div');
     var nextSeed = pot.next ? pot.next.seed : (find(steps, function (s) { return plantings(s, kind.cap) > 0; }) || {}).item;
 
     if (!steps.length) {
@@ -1312,17 +1238,17 @@
 
       box.appendChild(put(el('div', 'fh-nrow' + (isNext ? ' fh-next' : isOut ? ' fh-out' : '')), el('span', 'fh-ordn', String(i + 1)), icon(seed, 'fh-i22'),
         put(el('span', 'fh-grow'), text(cropOfSeed(step.item).name + ' '), step.keep ? el('span', 'fh-dim', say('keepN', step.keep)) : null),
-        isNext ? badge(say('nextBadge'), 'fh-b-green') : null, el('span', isOut ? 'fh-red' : 'fh-dim', fits ? say('nSeeds', owned(step.item)) : say('tooBig'))));
+        isNext ? badge(say('nextBadge'), 'fh-p-good') : null, el('span', isOut ? 'fh-red' : 'fh-dim', fits ? say('nSeeds', owned(step.item)) : say('tooBig'))));
     });
-    box.appendChild(el('div', 'fh-dim', say('plantNote')));
+    box.appendChild(el('div', 'fh-note', say('plantNote')));
 
     return box;
   }
 
-  // The pot's preset: its room's or floor's, or its own, with where it comes from.
-  function presetBox(pot) {
+  // The pot's preset, where it comes from, and a pick of its own.
+  function presetPick(pot) {
     var preset = presetById(pot.preset);
-    var source = put(el('div', 'fh-ln'), el('b', '', preset ? preset.name : say('none')), preset ? el('span', 'fh-dim', say(FROM_WORD[pot.from] || 'fromAll')) : null);
+    var source = put(el('div', 'fh-row2'), el('b', '', preset ? preset.name : say('none')), preset ? el('span', 'fh-dim', say(FROM_WORD[pot.from] || 'fromAll')) : null);
     var pick = el('div', 'fh-chips');
     var isOwn = pot.from === 'pot';
 
@@ -1331,62 +1257,35 @@
 
     if (!state.data.saved) pick.querySelectorAll('[data-act]').forEach(function (node) { node.disabled = true; });
 
-    return put(el('div', 'fh-box'), el('h4', '', say('preset')), source, pick, state.data.saved ? null : el('div', 'fh-dim', say('noSaveYet')));
+    return put(el('div'), source, pick, state.data.saved ? null : el('div', 'fh-note', say('noSaveYet')));
   }
 
-  function kindBox(kind, pot) {
-    var grid = el('div', 'fh-kv');
-    var bonus = [];
-
-    if (kind.light) bonus.push(say('light', kind.light));
-    if (kind.heat) bonus.push(say('heat', kind.heat));
-    if (kind.faster) bonus.push(say('faster', Math.round(kind.faster * 100)));
-
-    kv(grid, say('pot'), kind.name);
-    kv(grid, say('size'), sizeName(kind.cap));
-    kv(grid, say('bonus'), bonus.length ? bonus.join(', ') : say('none'));
-
-    if (kind.power) kv(grid, say('power'), pot.powered ? say('ok') : say('unpowered'));
-    if (pot.robot) kv(grid, say('robot'), say('ok'));
-
-    return put(el('div', 'fh-box'), el('h4', '', say('pot')), grid);
-  }
-
-  // Picking and checking only touch the cards involved and the panes beside them; the list is not rebuilt.
+  // Picking only touches the rows involved and the side beside them; the list is not rebuilt.
   function pickPot(id) {
     state.sel = state.sel === id ? '' : id;
+    showPicked();
+  }
 
-    if (!ui.cards || !ui.detail) {
+  function pickAt(id) {
+    state.sel = id;
+    showPicked();
+  }
+
+  function unpick() {
+    state.sel = '';
+    showPicked();
+  }
+
+  function showPicked() {
+    if (state.tab !== 'pots' || !ui.rows || !ui.side) {
+      state.tab = 'pots';
       render();
 
       return;
     }
 
-    Object.keys(ui.cards).forEach(function (key) { setClass(ui.cards[key], 'fh-sel', key === state.sel); });
-    fillDetail();
-  }
-
-  function checkPot(id) {
-    state.checks[id] = !state.checks[id];
-
-    var card = ui.cards && ui.cards[id];
-
-    if (!card) {
-      render();
-
-      return;
-    }
-
-    var check = card.querySelector('.fh-chk');
-
-    setClass(check, 'fh-on', state.checks[id]);
-    check.textContent = state.checks[id] ? '\u2713' : '';
-    fillActs();
-  }
-
-  function clearChecks() {
-    state.checks = {};
-    render();
+    Object.keys(ui.rows).forEach(function (key) { setClass(ui.rows[key], 'fh-sel-on', key === state.sel); });
+    fillSide();
   }
 
   // ---------- Planting presets tab ----------
@@ -1394,40 +1293,44 @@
   function renderPresets() {
     syncDraft();
 
-    var side = el('div', 'fh-plist');
+    var left = el('div', 'fh-c330');
     var list = scroller('plist');
-    var editor = scroller('editor', 'fh-editor');
-    var plan = scroller('plan', 'fh-plan');
+    var editor = scroller('editor', 'fh-ed');
+    var right = el('div', 'fh-c330');
+    var plan = scroller('plan');
 
     list.appendChild(section(say('presetsHead')));
-    presets().forEach(function (p) { list.appendChild(presetItem(p)); });
-    put(side, list, button('+ ' + say('newPreset'), 'newpreset', null, true));
+    presets().forEach(function (p) { list.appendChild(presetCard(p)); });
+    put(list, button('+ ' + say('newPreset'), 'newpreset', null, true, 'fh-q'), el('div', 'fh-hint', say('usedNote')));
 
     if (state.draft) {
       fillEditor(editor);
       fillPlan(plan);
     }
 
-    put(ui.body, side, editor, plan);
+    fillStock(plan);
+    left.appendChild(list);
+    right.appendChild(plan);
+    put(ui.body, left, editor, right);
   }
 
-  function presetItem(p) {
-    var icons = el('div', 'fh-icons');
+  function presetCard(p) {
+    var icons = el('div', 'fh-ics');
     var seen = [];
 
     Object.keys(p.seeds || {}).forEach(function (cap) {
       p.seeds[cap].forEach(function (s) {
         var crop = cropOfSeed(s.item);
 
-        if (seen.length < 4 && seen.indexOf(crop.id) < 0) {
+        if (seen.length < 6 && seen.indexOf(crop.id) < 0) {
           seen.push(crop.id);
-          icons.appendChild(icon(crop, 'fh-i18'));
+          icons.appendChild(icon(crop, 'fh-i22'));
         }
       });
     });
 
-    return put(act(el('div', 'fh-pitem' + (p.id === state.presetId ? ' fh-sel' : '')), 'preset', p.id),
-      put(el('div', 'fh-lbl'), el('b', '', p.name), el('small', '', (p.uses || []).length ? p.uses.map(useName).join(', ') : say('usedNowhere'))), icons);
+    return put(act(el('div', 'fh-pcard' + (p.id === state.presetId ? ' fh-on' : '')), 'preset', p.id),
+      el('div', 'fh-nm', p.name), el('div', 'fh-wh', (p.uses || []).length ? p.uses.map(useName).join(', ') : say('usedNowhere')), icons);
   }
 
   function useName(use) {
@@ -1496,31 +1399,30 @@
 
   function fillEditor(editor) {
     var d = state.draft;
-    var name = el('input', 'fh-inp');
+    var name = el('input', 'fh-inp fh-name');
     var isArmed = state.armed === 'deletepreset|' + d.id;
 
     name.setAttribute('data-field', 'name');
     name.setAttribute('placeholder', say('name'));
     name.value = d.name;
-    name.style.width = '300px';
 
     put(editor,
-      put(el('div', 'fh-bar'), name, button(say('save'), 'savepreset', null, true, 'fh-hot'),
+      put(el('div', 'fh-edhd'), name, button(say('save'), 'savepreset', null, true, 'fh-gold'),
         d.id ? button(isArmed ? say('confirm') : say('delete'), 'deletepreset', d.id, true, 'fh-danger' + (isArmed ? ' fh-armed' : '')) : null,
-        el('span', 'fh-grow'), el('span', 'fh-badge fh-b-amber fh-dirty', say('unsaved'))));
+        el('span', 'fh-grow'), el('span', 'fh-pill fh-p-warn fh-dirty', say('unsaved'))));
     markDirty(editor);
+    put(editor, section(say('usedFor')), useChips(d));
     seedSection(editor);
+    editor.appendChild(setRow(say('skipUnsuitable'), say('skipNote'), switchButton(d.skipUnsuitable, 'skip')));
     fertSection(editor);
     cropSection(editor);
-    put(editor, section(say('usedFor'), el('span', 'fh-r', say('usedNote'))), useChips(d),
-      setRow(say('skipUnsuitable'), say('skipNote'), switchButton(d.skipUnsuitable, 'skip')),
-      setRow(say('fertilizeOn'), say('fertilizeNote'), switchButton(d.fertilize, 'fertilizeon')),
-      setRow(say('autoReplant'), say('autoNote'), switchButton(d.autoReplant, 'autoreplant')));
+    put(editor, setRow(say('fertilizeOn'), say('fertilizeNote'), switchButton(d.fertilize, 'fertilizeon')),
+      section(say('afterHarvest')), setRow(say('autoReplant'), say('autoNote'), switchButton(d.autoReplant, 'autoreplant')));
   }
 
   // One column per pot size, each with its own seed order and its own add button.
   function seedSection(editor) {
-    var cols = el('div', 'fh-capcols');
+    var cols = el('div', 'fh-cols3');
 
     cols.style.gridTemplateColumns = 'repeat(' + Math.max(1, cat.caps.length) + ',minmax(0,1fr))';
     cat.caps.forEach(function (cap) { cols.appendChild(capColumn(cap)); });
@@ -1539,13 +1441,13 @@
   function capColumn(cap) {
     var steps = stepsFor(cap);
     var nextAt = firstPlantable(steps, cap);
-    var col = put(el('div', 'fh-capcol'), put(el('div', 'fh-caphead'), el('span', 'fh-grow', sizeName(cap)), el('span', 'fh-dim', say('keep'))));
+    var col = put(el('div', 'fh-fb'), put(el('div', 'fh-colh'), el('span', 'fh-grow', sizeName(cap)), el('span', 'fh-dim', say('keep'))));
 
     steps.forEach(function (step, i) { col.appendChild(seedStep(step, i, cap, steps.length, i === nextAt)); });
 
     var isAdding = state.addCap === cap;
 
-    col.appendChild(act(el('button', 'fh-dash' + (isAdding ? ' fh-on' : ''), say('addSeed')), 'addopen', cap));
+    col.appendChild(act(el('button', 'fh-chip fh-add' + (isAdding ? ' fh-on' : ''), say('addSeed')), 'addopen', cap));
 
     if (isAdding) col.appendChild(picker('addsearch', state.addSearch, 'addlist'));
 
@@ -1565,7 +1467,7 @@
     var crop = cropOfSeed(step.item);
     var each = perPot(step.item, cap);
     var have = owned(step.item);
-    var row = el('div', 'fh-step' + (!each ? ' fh-bad' : !plantings(step, cap) ? ' fh-short' : isNext ? ' fh-go' : ''));
+    var row = el('div', 'fh-it' + (!each ? ' fh-out' : !plantings(step, cap) ? ' fh-short' : isNext ? ' fh-go' : ''));
     var detail = each ? say('nSeeds', have) + ' \u00b7 ' + hours(crop.grow) : say('tooBig');
     var args = cap + '|' + i;
     var info = put(el('div', 'fh-sinfo'), put(el('b'), el('span', 'fh-cut', crop.name)),
@@ -1575,7 +1477,7 @@
     var moves = put(el('div', 'fh-moves'), plainButton('fh-ib', '\u2191', 'seedup', args, i > 0), plainButton('fh-ib', '\u2193', 'seeddown', args, i < count - 1),
       plainButton('fh-ib fh-del', '\u00d7', 'seeddel', args, true));
 
-    put(row, el('span', 'fh-ord', String(i + 1)), icon(seed, 'fh-i30'), info, put(el('div', 'fh-sctl'), moves, stepper));
+    put(row, el('span', 'fh-o', String(i + 1)), icon(seed, 'fh-i30'), info, put(el('div', 'fh-sctl'), moves, stepper));
 
     return row;
   }
@@ -1583,7 +1485,7 @@
   function picker(field, value, listId) {
     var box = el('div', 'fh-picker');
     var search = el('input', 'fh-inp fh-small');
-    var list = el('div', 'fh-col');
+    var list = el('div', 'fh-plist');
 
     list.style.gap = '2px';
     search.setAttribute('data-field', field);
@@ -1655,7 +1557,7 @@
     }
 
     d.perCrop.forEach(function (entry) { table.appendChild(cropRow(entry)); });
-    table.appendChild(act(el('button', 'fh-dash' + (state.isCropPicking ? ' fh-on' : ''), say('addCrop')), 'cropopen'));
+    table.appendChild(act(el('button', 'fh-chip fh-add' + (state.isCropPicking ? ' fh-on' : ''), say('addCrop')), 'cropopen'));
 
     if (state.isCropPicking) table.appendChild(picker('cropsearch', state.cropSearch, 'croplist'));
 
@@ -1675,7 +1577,7 @@
       order.appendChild(chip((at >= 0 ? (at + 1) + '. ' : '') + f.name, 'cropfert', entry.plant + '|' + f.id, at >= 0, null, f));
     });
 
-    if (!entry.order.length && entry.whenOut === 'none') order.appendChild(badge(say('never'), 'fh-b-amber'));
+    if (!entry.order.length && entry.whenOut === 'none') order.appendChild(badge(say('never'), 'fh-p-warn'));
 
     var del = plainButton('fh-ib fh-del', '\u00d7', 'cropdel', entry.plant, true);
 
@@ -1745,7 +1647,7 @@
       var steps = d.seeds[cap] || [];
       var count = users.filter(function (p) { return kindOf(p.kind).cap === cap; }).length;
       var left = steps.reduce(function (sum, s) { return sum + plantings(s, cap); }, 0);
-      var verdict = !count ? null : left >= 2 * count ? badge(say('ok'), 'fh-b-green') : left ? badge(say('low'), 'fh-b-amber') : badge(say('out'), 'fh-b-red');
+      var verdict = !count ? null : left >= 2 * count ? badge(say('ok'), 'fh-p-good') : left ? badge(say('low'), 'fh-p-warn') : badge(say('out'), 'fh-p-urgent');
 
       steps.forEach(function (s) {
         if (perPot(s.item, cap) && !plantings(s, cap) && outs.indexOf(s.item) < 0) outs.push(s.item);
@@ -1753,7 +1655,7 @@
 
       if (!steps.length && !count) return;
 
-      plan.appendChild(put(el('div', 'fh-prow2'), el('b', '', sizeName(cap)), el('span', 'fh-dim', say('nPots', count)),
+      plan.appendChild(put(el('div', 'fh-prow2'), el('b', '', sizeName(cap)), el('span', 'fh-dim', (count === 1 ? say('onePot') : say('nPots', count))),
         el('span', 'fh-grow fh-dim', say('plantingsLeft', left)), verdict));
     });
     plan.appendChild(el('div', 'fh-note', say('planNote')));
@@ -1941,15 +1843,14 @@
   // ---------- Robots tab ----------
 
   function renderRobots() {
-    var well = scroller('robots', 'fh-robots');
+    var well = scroller('robots', 'fh-grow');
     var robots = state.data.robots || [];
     var isOn = !!(state.data.settings && state.data.settings.robots);
+    var grid = el('div', 'fh-rgrid');
 
     well.appendChild(setRow(say('keepStocked'), say('keepNote'), switchButton(isOn, 'robots', isOn ? '0' : '1')));
 
-    if (!robots.length) well.appendChild(el('div', 'fh-empty', say('noRobots')));
-
-    var grid = el('div', 'fh-rgrid');
+    if (!robots.length) well.appendChild(el('div', 'fh-none', say('noRobots')));
 
     robots.forEach(function (robot) { grid.appendChild(robotCard(robot)); });
     well.appendChild(grid);
@@ -1957,16 +1858,17 @@
   }
 
   function robotCard(robot) {
-    var box = el('div', 'fh-robot');
+    var box = el('div', 'fh-rcard');
     var battery = Math.max(0, Math.min(100, robot.battery | 0));
-    var track = el('span', 'fh-track');
-    var head = put(el('div', 'fh-rhead'),
-      put(el('div', 'fh-dname'), el('div', 'fh-big', robot.name), put(el('div', 'fh-bar fh-dim'), text(say('floor', robot.floor)), track, text(say('battery', battery)))),
-      robot.on ? badge(say('working'), 'fh-b-green') : badge(say('robotOff'), 'fh-b-red'));
+    var track = el('span', 'fh-bar' + (battery < 20 ? ' fh-red' : battery < 50 ? ' fh-gold' : ''));
+    var fill = el('i');
+    var head = put(el('div', 'fh-hd'),
+      put(el('div', 'fh-mid'), el('div', 'fh-nm', robot.name), put(el('div', 'fh-meta'), text(say('floor', robot.floor)), track, text(say('battery', battery)))),
+      robot.on ? badge(say('working'), 'fh-p-good') : badge(say('robotOff'), 'fh-p-urgent'));
 
-    track.appendChild(el('span', 'fh-fill' + (battery < 20 ? ' fh-red' : battery < 50 ? ' fh-amber' : ' fh-blue')));
-    track.firstChild.style.width = battery + '%';
-    put(box, head, put(el('div', 'fh-tier fh-thead'), el('span', '', say('colSize')), el('span', '', say('colSeed')), el('span', '', say('fertWord')), el('span')));
+    fill.style.width = battery + '%';
+    track.appendChild(fill);
+    put(box, head, put(el('div', 'fh-tier fh-thead'), el('span', '', say('colSize')), el('span', '', say('colSeed')), el('span', '', say('fertWord')), el('span'), el('span')));
     robot.tiers.forEach(function (tier, i) {
       var isEditing = state.tierEdit && state.tierEdit.robot === robot.id && state.tierEdit.tier === i;
 
@@ -1982,12 +1884,13 @@
     var seed = tier.seed ? seedOf(tier.seed) : null;
     var fert = tier.fert ? fertOf(tier.fert) : null;
     var isShort = seed && owned(tier.seed) < perPot(tier.seed, tier.cap);
+    var verdict = !seed ? badge(say('noSeed'), 'fh-p-urgent') : isShort ? badge(say('out'), 'fh-p-urgent') : badge(say('ok'), 'fh-p-good');
 
     return put(el('div', 'fh-tier'), el('b', '', sizeName(tier.cap)),
       put(el('span', 'fh-tcell'), seed ? icon(seed, 'fh-i22') : null, el('span', seed ? '' : 'fh-dim', seed ? cropOfSeed(tier.seed).name : say('noSeed')),
         seed ? el('span', isShort ? 'fh-red' : 'fh-dim', say('nSeeds', owned(tier.seed))) : null),
       put(el('span', 'fh-tcell'), fert ? icon(fert, 'fh-i22') : null, el('span', fert ? '' : 'fh-dim', fert ? fert.name : say('noFert'))),
-      button(say('change'), 'tieredit', robot.id + '|' + i, true, 'fh-sm'));
+      verdict, button(say('change'), 'tieredit', robot.id + '|' + i, true, 'fh-sm'));
   }
 
   // The seeds that fit the pot size, owned first, and the fertilizer, both chosen here and sent with one press.
@@ -2004,7 +1907,7 @@
     cat.fertList.forEach(function (f) { ferts.appendChild(chip(f.name, 'tierfert', f.id, edit.fert === f.id, owned(f.id), f)); });
 
     return put(el('div', 'fh-tedit'), el('span', 'fh-dim', say('seed')), seeds, el('span', 'fh-dim', say('fertWord')), ferts,
-      put(el('div', 'fh-bar'), button(say('save'), 'settier', null, true, 'fh-hot'), button(say('cancel'), 'tierdone', null, true)));
+      put(el('div', 'fh-row2'), button(say('save'), 'settier', null, true, 'fh-gold'), button(say('cancel'), 'tierdone', null, true)));
   }
 
   function editTier(args) {
@@ -2034,84 +1937,14 @@
     sendAction('robottier|' + edit.robot + '|' + edit.tier + '|' + edit.seed + '|' + edit.fert);
   }
 
-  // ---------- Forecast tab ----------
-
-  function renderForecast() {
-    var stock = scroller('stock', 'fh-stock');
-    var time = scroller('coming', 'fh-time');
-
-    fillStock(stock);
-    fillComing(time);
-    put(ui.body, stock, time);
-  }
-
-  // A chip's width as a share of the timeline: about 7 px a letter, twice that for a Chinese character, plus the icon and padding.
-  function chipShare(words) {
-    var px = 44;
-
-    for (var i = 0; i < words.length; i++) px += words.charCodeAt(i) > 0x2e80 ? 13 : 7;
-
-    return Math.max(CHIP_SHARE, px / TIMELINE_PX * 100);
-  }
-
-  // What ripens or rots in the next two days on a timeline, each in the first lane it fits in.
-  function fillComing(well) {
-    var events = [];
-    var axis = el('div', 'fh-axis');
-    var lanes = el('div', 'fh-lanes');
-    var laneEnds = [];
-
-    pots().forEach(function (pot) {
-      if (pot.ripeIn != null && pot.ripeIn <= FORECAST_HOURS) events.push({ pot: pot, at: pot.ripeIn, isRot: false });
-      if (pot.rotIn != null && pot.rotIn <= FORECAST_HOURS) events.push({ pot: pot, at: pot.rotIn, isRot: true });
-    });
-    events.sort(function (a, b) { return a.at - b.at; });
-
-    for (var h = 0; h < FORECAST_HOURS; h += FORECAST_STEP) {
-      var tick = el('span', 'fh-tick', h ? '+' + say('hours', h) : say('now'));
-      var line = el('span', 'fh-gline' + (h ? '' : ' fh-now'));
-
-      tick.style.left = at(h) + '%';
-      line.style.left = at(h) + '%';
-      axis.appendChild(tick);
-      lanes.appendChild(line);
-    }
-
-    events.forEach(function (e) {
-      var crop = cropOf(e.pot.plant);
-      var label = e.isRot ? say('rots', crop.name) : crop.name;
-      var share = chipShare(label + ' ' + hours(e.at));
-      var x = Math.min(at(e.at), 100 - share);
-      var lane = 0;
-
-      while (laneEnds[lane] != null && laneEnds[lane] > x) lane++;
-
-      laneEnds[lane] = x + share;
-
-      var chipNode = put(act(el('div', 'fh-ev' + (e.isRot ? ' fh-rot' : '')), 'pickat', e.pot.id), icon(crop, 'fh-i18'),
-        el('span', '', label), el('span', 'fh-dim', hours(e.at)));
-
-      chipNode.style.left = x + '%';
-      chipNode.style.top = lane * 34 + 'px';
-      lanes.appendChild(chipNode);
-    });
-
-    lanes.style.height = Math.max(1, laneEnds.length) * 34 + 10 + 'px';
-    put(well, section(say('comingUp')), axis, lanes);
-
-    if (!events.length) well.appendChild(el('div', 'fh-empty', say('nothingSoon')));
-  }
-
-  function at(h) {
-    return Math.round(h / FORECAST_HOURS * 1000) / 10;
-  }
+  // ---------- stock, on the presets tab ----------
 
   // Each seed the presets plant, with how many pots of each size what the player owns would fill, then the
   // fertilizers the presets use.
   function fillStock(well) {
     var rows = {};
     var ferts = [];
-    var columns = 'minmax(0,1fr) 60px' + cat.caps.map(function () { return ' 88px'; }).join('');
+    var columns = 'minmax(0,1fr) 48px' + cat.caps.map(function () { return ' 36px'; }).join('');
     var head = put(el('div', 'fh-trow fh-thead'), el('span', '', say('colItem')), el('span', 'fh-tc', say('colHave')));
 
     presets().forEach(function (p) {
@@ -2130,11 +1963,11 @@
     });
 
     head.style.gridTemplateColumns = columns;
-    cat.caps.forEach(function (cap) { head.appendChild(el('span', 'fh-tc', sizeName(cap))); });
+    cat.caps.forEach(function (cap) { head.appendChild(el('span', 'fh-tc', SIZE_SHORT[cap] ? say(SIZE_SHORT[cap]) : String(cap))); });
     put(well, section(say('stockHead')), head);
 
     Object.keys(rows).map(function (k) { return rows[k]; }).sort(function (a, b) { return owned(a.item) - owned(b.item); }).forEach(function (row) {
-      var line = put(el('div', 'fh-trow'), put(el('span', 'fh-cname'), icon(seedOf(row.item), 'fh-i22'), text(cropOfSeed(row.item).name)),
+      var line = put(el('div', 'fh-trow'), put(el('span', 'fh-cname'), icon(seedOf(row.item), 'fh-i22'), el('span', 'fh-cut', cropOfSeed(row.item).name)),
         el('span', 'fh-tc' + (owned(row.item) ? '' : ' fh-red'), String(owned(row.item))));
 
       line.style.gridTemplateColumns = columns;
@@ -2147,7 +1980,7 @@
     });
 
     ferts.forEach(function (id) {
-      var line = put(el('div', 'fh-trow'), put(el('span', 'fh-cname'), icon(fertOf(id), 'fh-i22'), text(fertOf(id).name)),
+      var line = put(el('div', 'fh-trow'), put(el('span', 'fh-cname'), icon(fertOf(id), 'fh-i22'), el('span', 'fh-cut', fertOf(id).name)),
         el('span', 'fh-tc' + (owned(id) ? '' : ' fh-red'), String(owned(id))));
 
       line.style.gridTemplateColumns = columns;
@@ -2159,12 +1992,16 @@
   // ---------- Settings tab ----------
 
   function renderSettings() {
-    var well = scroller('settings', 'fh-robots');
+    var well = scroller('settings', 'fh-grow');
     var settings = state.data.settings || {};
 
     put(well,
-      setRow(say('rotWarn'), say('rotWarnNote'), segment(ROT_WARNS.map(function (h) { return [String(h), say('hours', h)]; }), String(settings.rotWarn), 'rotwarn')),
+      section(say('keysHead')),
+      state.key === GAME_TEND_KEY ? el('div', 'fh-warnbox', say('gTwice')) : null,
       setRow(say('hotkey'), state.key ? say('keyOpen', state.key) : say('keyNone'), state.key ? el('span', 'fh-kbd', state.key) : null),
+      section(say('warnHead')),
+      setRow(say('rotWarn'), say('rotWarnNote'), segment(ROT_WARNS.map(function (h) { return [String(h), say('hours', h)]; }), String(settings.rotWarn), 'rotwarn')),
+      section(say('otherHead')),
       el('div', 'fh-note', say('presetFile')));
     ui.body.appendChild(well);
   }
@@ -2187,13 +2024,6 @@
     return box;
   }
 
-  // A forecast chip opens its pot on the Pots tab.
-  LOCAL.pickat = function (id) {
-    state.tab = 'pots';
-    state.sel = id;
-    render();
-  };
-
   function open(data) {
     build();
     state.data = data || state.data;
@@ -2212,7 +2042,7 @@
 
     var shape = shapeOf(state.data);
 
-    if (ui && shape === shownShape && state.tab !== 'forecast') {
+    if (ui && shape === shownShape) {
       updateLive();
 
       return;

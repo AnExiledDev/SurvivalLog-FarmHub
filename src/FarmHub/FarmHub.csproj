@@ -41,7 +41,7 @@
     <AssemblyMetadata Include="ModManager.Description" Value="One window for every planter pot in your home. See each pot's crop, time to ripe, time before it rots and its problems by floor and room, plant every empty pot from a preset in one press, and fertilize or tend them. Planting presets set an order of seeds for each pot size and an order of fertilizers, with fallbacks for when one runs out, and fertilizer per crop. A forecast shows harvests and spoil deadlines for the next two days. Opens with G or a HUD button.&#10;一个窗口管理家中所有种植盆：按楼层和房间查看每个盆的作物、成熟剩余时间、腐烂前剩余时间和问题，一键按预设为所有空盆播种，还可以施肥和照料。种植预设可以为每种盆的大小设定种子顺序和肥料顺序，用完时自动换下一个，并可为每种作物单独设定肥料。预报会显示未来两天的收获和腐烂期限。用 G 或 HUD 按钮打开。" />
     <AssemblyMetadata Include="ModManager.Author" Value="AnExiledDev" />
     <AssemblyMetadata Include="ModManager.Category" Value="QualityOfLife" />
-    <AssemblyMetadata Include="ModManager.GameVersion" Value="1.1.19131" />
+    <AssemblyMetadata Include="ModManager.GameVersion" Value="1.1.19611" />
     <AssemblyMetadata Include="ModManager.Settings" Value="Restart" />
     <AssemblyMetadata Include="ModManager.GitHub" Value="AnExiledDev/SurvivalLog-FarmHub" />
     <AssemblyMetadata Include="ModManager.Changelog" Value="https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CHANGELOG.md" />

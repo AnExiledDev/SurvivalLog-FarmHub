@@ -60,6 +60,30 @@ public class FarmRunTests
         Assert.Equal(new[] { (1L, Basic) }, game.Fertilized);
     }
 
+    [Fact]
+    public void Tend_all_sends_the_games_tend_garden_then_plants_and_fertilizes_from_presets()
+    {
+        var game = new FakeGame { Stock = { [WheatSeed] = 9, [Basic] = 9 } };
+
+        game.Pots.AddRange(new[] { P(1), P(2, state: PotState.Growing, plant: Wheat), P(3, state: PotState.Ripe, plant: Wheat) });
+
+        Assert.Equal("Tend Garden sent. Planting 1 pot. Fertilizing 1 pot.", Say(FarmRun.TendAll(game, WheatEverywhere())));
+        Assert.Equal(1, game.TendAllCount);
+        Assert.Equal(new long[] { 1 }, game.Planted.Select(p => p.PotId));
+        Assert.Equal(new[] { (2L, Basic) }, game.Fertilized);
+    }
+
+    [Fact]
+    public void Tend_all_still_plants_when_the_game_turns_tend_garden_down()
+    {
+        var game = new FakeGame { Stock = { [WheatSeed] = 9 }, IsRefusingTendAll = true };
+
+        game.Pots.Add(P(1));
+
+        Assert.Equal("The game would not start Tend Garden. Planting 1 pot.", Say(FarmRun.TendAll(game, WheatEverywhere())));
+        Assert.Equal(new long[] { 1 }, game.Planted.Select(p => p.PotId));
+    }
+
     [Theory]
     [InlineData(PotState.Ripe, Problems.Pests, TendAction.Harvest)]
     [InlineData(PotState.Withered, Problems.None, TendAction.Clear)]

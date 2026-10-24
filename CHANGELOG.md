@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- New window layout, in the style of the other hubs. The pot list is grouped by room, with your floor marked and each room's preset named in its header. Show only the pots that need you, the empty ones or the growing ones, or search by crop, room or pot.
+- With no pot picked, the right side lists what needs you (harvest, care, bad spots, empty pots, fertilizer) and what ripens or rots in the next 48 hours. Pick a pot to see its timing, size, bonus, power and robot, change its preset, and do its next chore.
+- Tend all now sends the game's own Tend Garden (harvest, clear, weed, water), then plants and fertilizes from your presets.
+- The window now opens with Shift+G, so G stays the game's Tend Garden. Set the new PanelKeyShift setting to false to open it with G alone, as before.
+- The planting preset editor and the seed and fertilizer stock sit side by side on the Planting presets tab. The separate forecast tab is gone; its 48 hour list is on the Pots tab.
+- Checking several pots at once, and grouping or sorting the list another way, were removed.
+- Game version 1.1.19611.
+
 ## 0.2.0
 
 - The window is much faster: a refresh that only moves the clocks updates the times in place instead of rebuilding the window, picking or checking a pot no longer redraws the list, and words are sent to the window once.

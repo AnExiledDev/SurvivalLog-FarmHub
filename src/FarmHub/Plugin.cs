@@ -13,7 +13,7 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.2.0";
+    private const string Version = "0.3.0";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()
@@ -21,8 +21,11 @@ public sealed class Plugin : BasePlugin
         if (!OptionalLive.IsToolkitInstalled) Log.LogInfo(OptionalLive.MissingNote);
 
         var panelKey = Config.Bind("General", "PanelKey", KeyCode.G,
-            "Key that opens and closes the Farm Hub window, G by default. None turns the key off; the plant button in the HUD's tool column still opens the window.\n" +
-            "打开和关闭 Farm Hub 窗口的按键，默认 G。设为 None 则停用该按键，HUD 工具栏中的植物按钮仍可打开窗口。");
+            "Key that opens and closes the Farm Hub window, G by default, pressed with Shift while PanelKeyShift is true. None turns the key off; the plant button in the HUD's tool column still opens the window.\n" +
+            "打开和关闭 Farm Hub 窗口的按键，默认 G，PanelKeyShift 为 true 时需同时按住 Shift。设为 None 则停用该按键，HUD 工具栏中的植物按钮仍可打开窗口。");
+        var isPanelKeyShifted = Config.Bind("General", "PanelKeyShift", true,
+            "When true, the window opens with Shift and PanelKey (Shift+G by default), and G alone stays the game's Tend Garden. When false, PanelKey alone opens the window.\n" +
+            "设为 true 时，按 Shift 加 PanelKey 打开窗口（默认 Shift+G），单按 G 仍是游戏自带的「巡园」。设为 false 时，单按 PanelKey 即可打开窗口。");
         var rotWarnHours = Config.Bind("General", "RotWarnHours", 12, new ConfigDescription(
             "A ripe crop that will rot within this many hours is flagged as rotting soon, on the HUD button and in the window.\n" +
             "成熟作物在这么多小时内会腐烂时，会在 HUD 按钮和窗口中标记为「快腐烂」。",
@@ -50,9 +53,9 @@ public sealed class Plugin : BasePlugin
 
         OptionalLive.Watch(() =>
         {
-            session.UseSettings(panelKey.Value, rotWarnHours.Value, isKeepingRobotsStocked.Value);
-            log.Write($"key {panelKey.Value}, rot warning {rotWarnHours.Value} h, robots kept stocked {isKeepingRobotsStocked.Value}");
-        }, panelKey, rotWarnHours, isKeepingRobotsStocked);
+            session.UseSettings(panelKey.Value, isPanelKeyShifted.Value, rotWarnHours.Value, isKeepingRobotsStocked.Value);
+            log.Write($"key {(isPanelKeyShifted.Value ? "Shift+" : "")}{panelKey.Value}, rot warning {rotWarnHours.Value} h, robots kept stocked {isKeepingRobotsStocked.Value}");
+        }, panelKey, isPanelKeyShifted, rotWarnHours, isKeepingRobotsStocked);
 
         FarmTicker.Session = session;
         FarmTicker.Log = log.Write;

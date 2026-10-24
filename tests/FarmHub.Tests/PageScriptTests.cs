@@ -36,47 +36,28 @@ public class PageScriptTests
     private static bool SameAssign(PageCommand command, string presetId, params long[] potIds) =>
         command is PageCommand.Assign assign && assign.PresetId == presetId && assign.PotIds.SequenceEqual(potIds);
 
+    private const string Rows = "panel().querySelectorAll('[data-act]').filter(function (n) { return n.getAttribute('data-act') === 'pick'; })";
+
     [Fact]
     public void The_pots_are_grouped_by_room_and_the_players_floor_is_marked()
     {
         var page = Opened();
-        var marked = page.Text("panel().querySelectorAll('.fh-sect').filter(function (n) { return n.querySelector('.fh-badge'); }).map(function (n) { return n.textContent; }).join('|')");
+        var marked = page.Text("panel().querySelectorAll('.fh-grp-h').filter(function (n) { return n.textContent.indexOf('your floor') >= 0; }).map(function (n) { return n.textContent; }).join('|')");
 
-        Assert.Contains("Floor 1your floor", marked);
+        Assert.Contains("Floor 1 (your floor)", marked);
         Assert.DoesNotContain("|", marked);
-        Assert.Equal(4, (int)double.Parse(page.Text("panel().querySelectorAll('.fh-card').length")));
+        Assert.Equal(4, (int)double.Parse(page.Text(Rows + ".length")));
     }
 
     [Fact]
-    public void A_room_card_names_its_preset_only_when_the_room_header_does_not()
+    public void A_room_header_names_its_preset_and_opens_it_for_editing()
     {
-        var game = Home();
-        var book = TwoPresets() with
-        {
-            Overrides = new Dictionary<string, IReadOnlyDictionary<long, string>> { [game.SaveKey!] = new Dictionary<long, string> { [2] = "p2" } },
-        };
-        var page = Opened(game, book);
+        var page = Opened();
 
-        Assert.Equal("Small Planter", page.Text("panelButton('pick','1').querySelector('.fh-sub').textContent"));
-        Assert.Contains("Preset p2", page.Text("panelButton('pick','2').querySelector('.fh-sub').textContent"));
+        page.Click("panel().querySelectorAll('.fh-grp-h')[0].querySelector('[data-act]')");
 
-        page.Click("panelButton('group','crop')");
-
-        Assert.Contains("Preset p1", page.Text("panelButton('pick','1').querySelector('.fh-sub').textContent"));
-    }
-
-    [Fact]
-    public void Forecast_chips_whose_words_would_overlap_go_in_separate_lanes()
-    {
-        var game = new FakeGame
-        {
-            Pots = { P(1, state: PotState.Ripe, plant: Melon, rotIn: 2f), P(2, state: PotState.Growing, plant: Melon, ripeIn: 11f) },
-        };
-        var page = Opened(game);
-
-        ShowTab(page, "forecast");
-
-        Assert.True(page.Is("(function (chips) { return chips.length === 2 && chips[0].style.top !== chips[1].style.top; })(panel().querySelectorAll('.fh-ev'))"));
+        Assert.True(page.Is("panelButton('tab','presets').classList.contains('fh-on')"));
+        Assert.Equal("p1", page.Text("panel().querySelectorAll('.fh-pcard').filter(function (n) { return n.classList.contains('fh-on'); })[0].getAttribute('data-args')"));
     }
 
     [Fact]
@@ -88,39 +69,92 @@ public class PageScriptTests
         var page = Opened(game);
 
         page.Click("panelButton('pick','4')");
-        page.Click("panelButton('check','1')");
-        page.Run("var keptCard = panel().querySelector('.fh-sel');");
+        page.Run("var keptRow = panelButton('pick','4');");
 
         game.Pots[3] = P(4, floor: -1, state: PotState.Growing, plant: Tomato, ripeIn: 3f);
         page.SetData(FarmView.Ready(game.World, TwoPresets(), Settings));
 
-        Assert.True(page.Is("keptCard === panel().querySelector('.fh-sel') && keptCard.textContent.indexOf('3 h to ripe') >= 0"));
-        Assert.True(page.Is("panelButton('check','1').classList.contains('fh-on')"));
+        Assert.True(page.Is("keptRow === panelButton('pick','4') && keptRow.classList.contains('fh-sel-on') && keptRow.textContent.indexOf('3 h to ripe') >= 0"));
     }
 
     [Fact]
-    public void A_filter_shows_only_the_pots_that_match_it()
+    public void The_show_buttons_list_only_the_pots_that_match()
     {
         var page = Opened();
 
-        page.Click("panelButton('filter','ripe')");
+        page.Click("panelButton('show','needs')");
 
-        Assert.Equal(1, (int)double.Parse(page.Text("panel().querySelectorAll('.fh-card').length")));
-        Assert.True(page.Is("panel().querySelector('.fh-card').getAttribute('data-args') === '2'"));
+        Assert.Equal("2", page.Text(Rows + ".map(function (n) { return n.getAttribute('data-args'); }).join(',')"));
 
-        page.Click("panelButton('filter','empty')");
+        page.Click("panelButton('show','empty')");
 
-        Assert.Equal(2, (int)double.Parse(page.Text("panel().querySelectorAll('.fh-card').length")));
+        Assert.Equal(2, (int)double.Parse(page.Text(Rows + ".length")));
+
+        page.Click("panelButton('show','growing')");
+
+        Assert.Equal("4", page.Text(Rows + ".map(function (n) { return n.getAttribute('data-args'); }).join(',')"));
     }
 
     [Fact]
-    public void Grouping_by_state_puts_the_ripe_pots_first()
+    public void Searching_narrows_the_pot_list_by_crop_name()
     {
         var page = Opened();
 
-        page.Click("panelButton('group','state')");
+        page.Run("type(field('potsearch'), 'toma')");
 
-        Assert.Equal("2", page.Text("panel().querySelectorAll('.fh-card')[0].getAttribute('data-args')"));
+        Assert.Equal("4", page.Text(Rows + ".map(function (n) { return n.getAttribute('data-args'); }).join(',')"));
+    }
+
+    [Fact]
+    public void Back_returns_from_a_pots_detail_to_what_needs_the_player()
+    {
+        var page = Opened();
+
+        page.Click("panelButton('pick','2')");
+
+        Assert.True(page.Is("!panelButton('tendall')"));
+
+        page.Click("panelButton('back')");
+
+        Assert.True(page.Is("!!panelButton('tendall') && !panelButton('pick','2').classList.contains('fh-sel-on')"));
+    }
+
+    [Fact]
+    public void A_crop_coming_up_in_the_next_two_days_opens_its_pot()
+    {
+        var game = new FakeGame { Pots = { P(1, state: PotState.Growing, plant: Melon, ripeIn: 11f), P(2) } };
+        var page = Opened(game);
+
+        Assert.Contains("in 11 h", page.Text("panelButton('pickat','1').textContent"));
+
+        page.Click("panelButton('pickat','1')");
+
+        Assert.True(page.Is("panelButton('pick','1').classList.contains('fh-sel-on') && !!panelButton('back')"));
+    }
+
+    [Fact]
+    public void With_the_panel_key_on_G_the_window_warns_that_G_also_tends_the_garden()
+    {
+        var page = Opened();
+
+        page.Live(true, "G");
+
+        ShowTab(page, "settings");
+
+        Assert.Contains("Tend Garden", page.Text("panel().querySelectorAll('.fh-warnbox')[0].textContent"));
+    }
+
+    [Fact]
+    public void With_the_panel_key_on_Shift_G_the_footer_names_both_keys_and_nothing_warns()
+    {
+        var page = Opened();
+
+        page.Live(true, "Shift+G");
+        ShowTab(page, "settings");
+
+        Assert.True(page.Is("panel().querySelectorAll('.fh-warnbox').length === 0"));
+        Assert.Contains("GTend Garden (game)", page.Text("panel().querySelectorAll('.fh-wfoot')[0].textContent"));
+        Assert.Contains("Shift+Gthis window", page.Text("panel().querySelectorAll('.fh-wfoot')[0].textContent"));
     }
 
     [Fact]
@@ -163,21 +197,6 @@ public class PageScriptTests
         page.Click("panelButton('assign','p2|1')");
 
         Assert.True(SameAssign(page.Sent.Single(), "p2", 1));
-    }
-
-    [Fact]
-    public void Several_checked_pots_take_a_preset_or_go_back_to_the_default_together()
-    {
-        var page = Opened();
-
-        page.Click("panelButton('check','1')");
-        page.Click("panelButton('check','3')");
-        page.Click("panelButton('assign','p2|1,3')");
-        page.Status("");
-        page.Click("panelButton('assign','|1,3')");
-
-        Assert.True(SameAssign(page.Sent[0], "p2", 1, 3));
-        Assert.True(SameAssign(page.Sent[1], "", 1, 3));
     }
 
     [Fact]

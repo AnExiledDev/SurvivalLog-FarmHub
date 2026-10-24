@@ -74,6 +74,9 @@ internal sealed class FakeGame : IFarmGame
 
     public int TendAllCount { get; private set; }
 
+    /// <summary>Set to make the game turn down Tend Garden, as it does before the player has unlocked it.</summary>
+    public bool IsRefusingTendAll { get; set; }
+
     public static Pot P(long id, int kind = Small, int floor = 1, int area = Greenhouse, PotState state = PotState.Empty, int plant = 0,
         Problems problems = Problems.None, float? ripeIn = null, float? rotIn = null, int fert = 0, bool pending = false, long robot = 0,
         params int[] unsuitable) =>
@@ -136,7 +139,7 @@ internal sealed class FakeGame : IFarmGame
     {
         TendAllCount++;
 
-        return true;
+        return !IsRefusingTendAll;
     }
 
     public bool SetRobotTier(long robotId, int tier, int seedId, int fertId)

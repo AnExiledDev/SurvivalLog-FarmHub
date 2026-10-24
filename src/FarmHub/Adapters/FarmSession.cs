@@ -28,6 +28,7 @@ internal sealed class FarmSession
 
     private PresetBook? _book;
     private KeyCode _panelKey;
+    private bool _isPanelKeyShifted;
     private int _rotWarnHours = 12;
     private bool _isKeepingRobotsStocked;
 
@@ -53,9 +54,11 @@ internal sealed class FarmSession
     private static bool IsChinese => GameLanguage.IsChinese();
 
     /// <summary>Called on the main thread at start and after each settings change; the page hears them at the next refresh.</summary>
-    public void UseSettings(KeyCode panelKey, int rotWarnHours, bool isKeepingRobotsStocked)
+    public void UseSettings(KeyCode panelKey, bool isPanelKeyShifted, int rotWarnHours, bool isKeepingRobotsStocked)
     {
         _panelKey = panelKey;
+        _isPanelKeyShifted = isPanelKeyShifted;
+        InputGate.UsePanelKey(panelKey, isPanelKeyShifted);
         _rotWarnHours = rotWarnHours;
         _isKeepingRobotsStocked = isKeepingRobotsStocked;
         _sentLive = null;
@@ -71,7 +74,7 @@ internal sealed class FarmSession
 
         while (PageMessages.TryTake(out var command)) HandleSafely(command);
 
-        if (!_keyboard.IsClaimed && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey))
+        if (!_keyboard.IsClaimed && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
         {
             Toggle();
 
@@ -142,7 +145,7 @@ internal sealed class FarmSession
                 Press($"tend {tend.PotId}", () => FarmRun.Tend(_game, tend.PotId));
                 break;
             case PageCommand.TendAll:
-                Press("tend all", () => FarmRun.TendAll(_game));
+                Press("tend all", () => FarmRun.TendAll(_game, Book()));
                 break;
             case PageCommand.RobotTier tier:
                 Press($"robot {tier.RobotId} tier {tier.Tier}", () => FarmRun.SetRobotTier(_game, tier.RobotId, tier.Tier, tier.SeedId, tier.FertId));
@@ -365,5 +368,5 @@ internal sealed class FarmSession
         Redraw();
     }
 
-    private string KeyName() => _panelKey == KeyCode.None ? "" : _panelKey.ToString();
+    private string KeyName() => _panelKey == KeyCode.None ? "" : (_isPanelKeyShifted ? "Shift+" : "") + _panelKey;
 }

@@ -36,9 +36,8 @@ public abstract record FarmOutcome
 
     public sealed record Tending(string Pot, TendAction Action) : FarmOutcome;
 
-    public sealed record TendingAll : FarmOutcome;
-
-    public sealed record TendAllRefused : FarmOutcome;
+    /// <summary>Tend all: whether the game took its Tend Garden, then the empty pots planted and growing pots fertilized from presets.</summary>
+    public sealed record TendedAll(bool IsTending, int PlantedCount, int FertilizedCount) : FarmOutcome;
 
     public sealed record NothingToTend(string Pot) : FarmOutcome;
 
@@ -101,7 +100,18 @@ public static class FarmRun
         return game.Tend(pot.Id, action.Value) ? new FarmOutcome.Tending(name, action.Value) : new FarmOutcome.Refused(name);
     });
 
-    public static FarmOutcome TendAll(IFarmGame game) => WithWorld(game, _ => game.TendAll() ? new FarmOutcome.TendingAll() : new FarmOutcome.TendAllRefused());
+    /// <summary>
+    /// The game's own Tend Garden (harvest and chores, budgeted by stamina), then the empty pots planted and the growing
+    /// pots fertilized from their presets. A game that refuses Tend Garden still gets the planting and fertilizer.
+    /// </summary>
+    public static FarmOutcome TendAll(IFarmGame game, PresetBook book) => WithWorld(game, world =>
+    {
+        var isTending = game.TendAll();
+        var planted = PlantWhere(game, book, world, _ => true);
+        var fertilized = Fertilize(game, book, null);
+
+        return new FarmOutcome.TendedAll(isTending, planted is FarmOutcome.Planted done ? done.Count : 0, fertilized is FarmOutcome.Fertilizing fed ? fed.Count : 0);
+    });
 
     /// <summary>Sets one of a robot's sow settings. A seed whose crop does not fit that pot size is refused before the game sees it.</summary>
     public static FarmOutcome SetRobotTier(IFarmGame game, long robotId, int tier, int seedId, int fertId) => WithWorld(game, world =>

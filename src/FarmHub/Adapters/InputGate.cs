@@ -17,13 +17,25 @@ internal static class InputGate
     private static int _blockedThroughFrame = -1;
     private static bool _hasRoutedAClick;
     private static Action<string> _log = _ => { };
+    private static KeyCode _panelKey;
+    private static bool _isPanelKeyShifted;
 
     public static void Apply(Harmony harmony, Action<string> log)
     {
         _log = log;
         Patch(harmony, typeof(HotKeyManager), "Update", prefix: nameof(SkipWhileBlocked), done: "hotkeys are blocked while the panel is open", consequence: "keys pressed over the panel will also reach the game");
+        Patch(harmony, typeof(HotKeyManager), "HandleHotKeyPlantPatrol", prefix: nameof(SkipTendGardenOnPanelKey), done: "Shift with the panel key opens the window without also sending Tend Garden", consequence: "Shift with the panel key may also send the game's Tend Garden");
         Patch(harmony, typeof(WebUILayer), "ValidateRaycast", postfix: nameof(RouteClicksToPanel), done: "clicks go to the panel while it is open", consequence: "clicks on the panel may fall through to the game");
     }
+
+    /// <summary>The game's Tend Garden key ignores Shift, so Shift with the same key would fire both without this.</summary>
+    public static void UsePanelKey(KeyCode key, bool isShifted)
+    {
+        _panelKey = key;
+        _isPanelKeyShifted = isShifted;
+    }
+
+    public static bool IsShiftHeld() => Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
 
     public static void PanelOpened() => _isPanelOpen = true;
 
@@ -51,6 +63,8 @@ internal static class InputGate
     }
 
     private static bool SkipWhileBlocked() => !(_isPanelOpen || Time.frameCount <= _blockedThroughFrame);
+
+    private static bool SkipTendGardenOnPanelKey() => !(_isPanelKeyShifted && _panelKey != KeyCode.None && IsShiftHeld() && Input.GetKeyDown(_panelKey));
 
     private static void RouteClicksToPanel(ref bool __result)
     {

@@ -20,8 +20,7 @@ public static class FarmMessages
         FarmOutcome.Fertilizing fertilizing => Batch(Texts.Fertilizing, fertilizing.Count, Texts.NoFertCount, fertilizing.NoFert, fertilizing.RefusedCount, isChinese),
         FarmOutcome.NothingToFertilize => Texts.NothingToFertilize.Pick(isChinese),
         FarmOutcome.Tending tending => Texts.Tending.Say(isChinese, tending.Pot, Texts.ChoreName(tending.Action).Pick(isChinese)),
-        FarmOutcome.TendingAll => Texts.TendingAll.Pick(isChinese),
-        FarmOutcome.TendAllRefused => Texts.TendAllRefused.Pick(isChinese),
+        FarmOutcome.TendedAll all => TendedAll(all, isChinese),
         FarmOutcome.NothingToTend nothing => Texts.NothingToTend.Say(isChinese, nothing.Pot),
         FarmOutcome.Refused refused => Texts.Refused.Say(isChinese, refused.Pot),
         FarmOutcome.RobotGone => Texts.RobotGone.Pick(isChinese),
@@ -39,6 +38,16 @@ public static class FarmMessages
 
         if (shortCount > 0) parts.Add(shortfall.Say(isChinese, shortCount));
         if (refusedCount > 0) parts.Add(Texts.GameRefused.Say(isChinese, refusedCount));
+
+        return string.Join(" ", parts);
+    }
+
+    private static string TendedAll(FarmOutcome.TendedAll all, bool isChinese)
+    {
+        var parts = new List<string> { (all.IsTending ? Texts.TendingAll : Texts.TendAllRefused).Pick(isChinese) };
+
+        if (all.PlantedCount > 0) parts.Add(Texts.Planted.Say(isChinese, all.PlantedCount));
+        if (all.FertilizedCount > 0) parts.Add(Texts.Fertilizing.Say(isChinese, all.FertilizedCount));
 
         return string.Join(" ", parts);
     }

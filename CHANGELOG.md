@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2
+
+- Fixed: the search boxes and text boxes in Farm Hub now accept Chinese and other typing that needs an input method.
+- Made for Survival Log 1.1.19611.
+
 ## 0.4.1
 
 - Less stutter: the farm read skips furniture that is not a pot sooner, rechecks one empty pot's light and warmth at a time, and the auto replant waits a frame instead of running with the farm read.

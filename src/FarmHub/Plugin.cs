@@ -13,7 +13,7 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.4.1";
+    private const string Version = "0.4.2";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()

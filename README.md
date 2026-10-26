@@ -19,6 +19,7 @@ Press `Shift+G`, or the plant button in the tool column on the left of the scree
 - **Rotting soon**: a ripe crop that will rot within 12 hours (you pick 6 to 48) is flagged and sorts to the top.
 - **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. Optionally, when a robot runs out of a seed, Farm Hub switches it to the next seed in its floor's preset so it keeps sowing.
 - **Stock**: the Planting presets tab shows the seeds and fertilizer you own and how many pots of each size they would fill.
+- **UI size**: with Exiled's Toolkit 0.10.0 or newer, its UI size setting (`UiScale`) draws the window and its pop-up messages bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size.
 
 Presets are kept in `BepInEx\config\farm-hub.json`, shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
@@ -28,7 +29,7 @@ Farm Hub does what Greenline does. Use one or the other, not both.
 
 - Survival Log 1.1.19611. Built for this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- Optional: [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.4.0 or newer. With it, settings changed on the Mod Manager's Mods screen take effect without restarting the game. Without it, they take effect at the next game start. With 0.6.0 or newer, the HUD's tool buttons are also laid out four high, in columns, when there are more than four.
+- Optional: [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.4.0 or newer. With it, settings changed on the Mod Manager's Mods screen take effect without restarting the game. Without it, they take effect at the next game start. With 0.6.0 or newer, the HUD's tool buttons are also laid out four high, in columns, when there are more than four. With 0.10.0 or newer, its UI size setting also sizes the window.
 
 ## Install
 
@@ -51,7 +52,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.3 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.4 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
 
 ## Known issues
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+- The Farm Hub window and its pop-up messages can be drawn bigger or smaller with the UI size setting of Exiled's Toolkit 0.10.0 or newer. A change shows at once, and the window only grows as far as it still fits on the screen.
+- The HUD button and the additions to the game's plant list keep the game's size, like the game's own buttons and text around them.
+- Made for Survival Log 1.1.19611.
+
 ## 0.4.3
 
 - Less stutter: Farm Hub now checks your pots a few at a time over several frames instead of all in one frame.

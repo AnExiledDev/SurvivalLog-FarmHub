@@ -51,7 +51,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.0 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.1 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
 
 ## Known issues
 

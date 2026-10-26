@@ -102,8 +102,9 @@ internal sealed class FarmSession
             return;
         }
 
+        // The farm read and the auto pass each read the whole farm, so they never share a frame.
         if (now >= _nextRefreshAt) Refresh(now);
-        if (now >= _nextAutoAt) RunAuto(now);
+        else if (now >= _nextAutoAt) RunAuto(now);
     }
 
     /// <summary>One command that throws must not cost the rest of the frame its commands or the key checks.</summary>

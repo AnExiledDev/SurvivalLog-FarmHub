@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.4.0
+## 0.4.1
+
+- Less stutter: the farm read skips furniture that is not a pot sooner, rechecks one empty pot's light and warmth at a time, and the auto replant waits a frame instead of running with the farm read.
 
 - The game's plant list in the HUD shows more: each pot's room and what it needs (rots in how long, what it gets replanted with, or the chore or fertilizer it waits for), the empty pots with the seed they would get (click one to plant it), a Needs you / All switch that folds away most of the growing pots, and a link to the Farm Hub window.
 - The game's Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take, and warns when your stamina is short or a preset has no seed left.

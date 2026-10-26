@@ -32,6 +32,7 @@ internal sealed class GameFarm : IFarmGame
 
     /// <summary>A pot's light and heat change only when the player builds or moves something, so its check is kept a while.</summary>
     private readonly Dictionary<(long PotId, int KindId), (float At, HashSet<int> Crops)> _unsuitable = new();
+    private bool _hasRecheckedThisRead;
 
     public GameFarm(Action<string> log)
     {
@@ -145,6 +146,9 @@ internal sealed class GameFarm : IFarmGame
         if (!IsHome(agents)) return new FarmRead.NotReady(Texts.Away.Pick(isChinese));
 
         var catalog = Catalog(config, isChinese);
+
+        _hasRecheckedThisRead = false;
+
         var roleId = role.InstanceId;
         var areaNames = new Dictionary<int, string>();
         var pots = ReadPots(world, config, agents, catalog, roleId, areaNames);
@@ -237,7 +241,8 @@ internal sealed class GameFarm : IFarmGame
         {
             var furniture = furnitures[i];
 
-            if (furniture == null || !IsShownPot(world, agents, furniture) || !catalog.Kinds.ContainsKey(furniture.AgentConfigId)) continue;
+            // The pot kind check is one read; the shown checks are several, and most furniture is not a pot.
+            if (furniture == null || !catalog.Kinds.ContainsKey(furniture.AgentConfigId) || !IsShownPot(world, agents, furniture)) continue;
 
             try
             {
@@ -340,7 +345,10 @@ internal sealed class GameFarm : IFarmGame
         var key = (furniture.InstanceId, furniture.AgentConfigId);
         var now = UnityEngine.Time.unscaledTime;
 
-        if (_unsuitable.TryGetValue(key, out var kept) && now - kept.At < SuitabilitySeconds) return kept.Crops;
+        // One stale pot is checked again per read, so a home of empty pots never asks all of them in the same frame.
+        if (_unsuitable.TryGetValue(key, out var kept) && (now - kept.At < SuitabilitySeconds || _hasRecheckedThisRead)) return kept.Crops;
+
+        if (_unsuitable.ContainsKey(key)) _hasRecheckedThisRead = true;
 
         var unsuitable = CheckSuitability(config, catalog, furniture);
 

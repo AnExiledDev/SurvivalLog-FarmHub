@@ -15,7 +15,7 @@
 - The window now opens with Shift+G, so G stays the game's Tend Garden. Set the new PanelKeyShift setting to false to open it with G alone, as before.
 - The planting preset editor and the seed and fertilizer stock sit side by side on the Planting presets tab. The separate forecast tab is gone; its 48 hour list is on the Pots tab.
 - Checking several pots at once, and grouping or sorting the list another way, were removed.
-- Game version 1.1.19611.
+- Updated for Survival Log 1.1.19611.
 
 ## 0.2.0
 
@@ -26,12 +26,18 @@
 - Robots are shown side by side. The forecast shows the next 48 hours on a timeline.
 - Cleaner layout: rooms, grouping and sorting sit above the crop list, a card leaves out the preset its room header already names, long seed and fertilizer names no longer clip, and forecast entries no longer overlap.
 
-- After a game update, a hook that can no longer be placed is logged as an error, so the Mod Manager can mark the mod as maybe needing an update.
+- After a game update, Mod Manager can tell you if this mod may need an update.
 
 ## 0.1.1
 
-- With Exiled's Toolkit 0.6.0 or later, the HUD button takes its place in the Toolkit's tidy layout of the tool buttons.
+- With Exiled's Toolkit 0.6.0 or later, the HUD button lines up neatly with other mods' buttons.
 
 ## 0.1.0
 
-First release. A window for every pot at home: crop, timing, rot warning and problems, Plant, Fertilize and Tend all, planting presets with seed and fertilizer fallbacks and fertilizer per crop, auto replant, planter robot sow settings, and a 48 hour forecast.
+- First release.
+- A window lists every pot at home with its crop, timing, rot warning and problems.
+- Plant, Fertilize and Tend all work on every pot at once.
+- Planting presets give each pot a seed and fertilizer order to fall back on, with fertilizer set per crop.
+- Harvested pots can be replanted on their own.
+- The planter robot's sowing can be set from the window.
+- A forecast shows what ripens or rots in the next 48 hours.

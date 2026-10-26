@@ -1,5 +1,5 @@
 Name: Farm Hub
-Summary: Every pot at home in one window, plus more in the game's plant list: empty pots, what each pot needs, and the next Tend Garden's chores and stamina. Tend Garden can replant, plant and fertilize from your presets. Presets set seed and fertilizer fallbacks per pot size, per crop, room or floor, and keep your planter robots sowing when a seed runs out.
+Summary: Every pot at home in one window, plus more in the game's plant list: empty pots, what each pot needs, and the next Tend Garden's chores and stamina. Tend Garden can replant, plant and fertilize from your presets. Presets set seed and fertilizer fallbacks per pot size, per crop, room or floor, and keep planter robots sowing when a seed runs out.
 
 Description (BBCode):
 Every pot at home in one window: what grows in it, when it is ripe, when it rots, what it needs and what it gets planted with next. Press [font=Courier New]Shift+G[/font], or the plant button in the tool column on the left of the screen, to open it. The button shows how many pots have a chore waiting or could be planted now.

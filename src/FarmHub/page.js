@@ -274,9 +274,14 @@
   var toastTimer = 0;
   var isBusy = false;
   var busyTimer = 0;
-  var hudVersion = 0;
   var hasReportedPageAccess = false;
   var hasReportedHudPlaced = false;
+  // Bumped when the catalog or the words change, so nodes drawn from the old ones are drawn again.
+  var catSeq = 0;
+  var wordsSeq = 0;
+  var seenWords = null;
+  // The window's pot rows by pot id, reused while the pot looks the same: { key, node, live }.
+  var rowCache = {};
 
   function say(key) {
     var words = window.__slfarmhubWords || ENGLISH;
@@ -285,6 +290,18 @@
     for (var i = 1; i < arguments.length; i++) text = text.split('{' + (i - 1) + '}').join(String(arguments[i]));
 
     return text;
+  }
+
+  // The plugin swaps in a new words object when the game's language changes; this notices the swap.
+  function wordsKey() {
+    var words = window.__slfarmhubWords || ENGLISH;
+
+    if (words !== seenWords) {
+      seenWords = words;
+      wordsSeq++;
+    }
+
+    return wordsSeq;
   }
 
   // A phrase with its number picked out, as in "5 ripe": the number is bold and coloured, the rest is plain.
@@ -708,6 +725,7 @@
     ((data && data.seeds) || []).forEach(function (s) { cat.seeds[s.id] = s; cat.seedList.push(s); });
     ((data && data.ferts) || []).forEach(function (f) { cat.ferts[f.id] = f; cat.fertList.push(f); });
     cat.caps.sort(function (a, b) { return a - b; });
+    catSeq++;
 
     if (state.isOpen) render();
   }
@@ -1010,6 +1028,14 @@
       sorted(group.pots).forEach(function (pot) { grid.appendChild(potRow(pot)); });
       well.appendChild(put(el('div', 'fh-grp'), groupHead(group), grid));
     });
+
+    // Rows kept for pots that are gone, as after loading another save, are let go.
+    var listed = {};
+
+    pots().forEach(function (p) { listed[p.id] = true; });
+    Object.keys(rowCache).forEach(function (id) {
+      if (!listed[id]) delete rowCache[id];
+    });
   }
 
   function groupHead(group) {
@@ -1039,7 +1065,26 @@
     return '';
   }
 
+  // A pot whose data, catalog and words are as when its row was drawn keeps that row: only its clocks are written and
+  // its picked mark set. A redraw of the list then builds only the rows of pots that changed.
   function potRow(pot) {
+    var key = shapeOf(pot) + '|' + catSeq + '|' + wordsKey();
+    var kept = rowCache[pot.id];
+
+    if (kept && kept.key === key) {
+      kept.live.forEach(function (entry) {
+        ui.live.push(entry);
+        entry.update(entry.node, pot);
+      });
+
+      if (kept.node.classList.contains('fh-sel-on') !== (pot.id === state.sel)) setClass(kept.node, 'fh-sel-on', pot.id === state.sel);
+
+      ui.rows[pot.id] = kept.node;
+
+      return kept.node;
+    }
+
+    var liveFrom = ui.live.length;
     var kind = kindOf(pot.kind);
     var crop = pot.plant ? cropOf(pot.plant) : null;
     var row = act(el('div', 'fh-row' + edgeClass(pot) + (crop ? '' : ' fh-blank') + (pot.id === state.sel ? ' fh-sel-on' : '')), 'pick', pot.id);
@@ -1049,6 +1094,7 @@
     end.appendChild(pot.state === 'empty' && pot.canPlant ? button(say('plant'), 'plant', pot.id, !pot.pending, 'fh-sm fh-q') : statePill(pot));
     put(row, icon(crop || kind, 'fh-i40'), put(el('div', 'fh-mid'), name, metaLine(pot)), end);
     ui.rows[pot.id] = row;
+    rowCache[pot.id] = { key: key, node: row, live: ui.live.slice(liveFrom) };
 
     return row;
   }
@@ -2118,7 +2164,6 @@
   function setLive(isLive, key) {
     state.isLive = !!isLive;
     state.key = key || '';
-    hudVersion++;
 
     if (ui && state.isOpen) renderKeys();
 
@@ -2128,7 +2173,6 @@
   // The number on the HUD button and the Pots tab: pots with a chore waiting and empty pots a press of Plant would fill.
   function setBadge(count) {
     state.badge = Math.max(0, count | 0);
-    hudVersion++;
 
     if (ui && state.isOpen) renderTabs();
 
@@ -2142,9 +2186,35 @@
     '.fh-hud-btn .fh-hud-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e53935;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.6)}'
   ].join('\n');
 
+  // The HUD frame and every node placed in its document. Kept while that frame is still in the page with the same
+  // document, so a poll that finds nothing changed searches nothing; a new HUD document gets a new record.
+  var hudAt = null;
+
   // The HUD is a same-origin iframe, so its document can be reached from here; polled because the game creates and
   // drops that iframe whenever it likes.
   function patchPages() {
+    // Outside a game nothing is shown, so there is nothing to look for unless something placed earlier must go.
+    if (!state.isLive && !(hudAt && (hudAt.button || hudAt.placed))) return;
+
+    var page = hudPageNow();
+
+    if (!page) return;
+
+    placeHudButton(page);
+    patchPlantPanel(page);
+  }
+
+  function patchPagesSafely() {
+    try {
+      patchPages();
+    } catch (e) {}
+  }
+
+  function hudPageNow() {
+    if (hudAt && isSameHud(hudAt)) return hudAt;
+
+    hudAt = null;
+
     var frames = document.querySelectorAll('iframe');
 
     for (var i = 0; i < frames.length; i++) {
@@ -2164,40 +2234,99 @@
         continue;
       }
 
-      placeHudButton(doc);
-      patchPlantPanel(doc);
+      hudAt = newHudPage(frames[i], doc);
+
+      return hudAt;
+    }
+
+    return null;
+  }
+
+  function isSameHud(page) {
+    try {
+      return page.frame.isConnected && page.frame.contentDocument === page.doc;
+    } catch (e) {
+      return false;
     }
   }
 
-  function patchPagesSafely() {
-    try {
-      patchPages();
-    } catch (e) {}
+  // Anything of ours already in the document is taken out once, so the nodes in the record are the only ones there.
+  function newHudPage(frame, doc) {
+    ['.' + HUD_CLASS, '.fh-hudadd', '#' + FILTER_STYLE_ID].forEach(function (selector) {
+      doc.querySelectorAll(selector).forEach(function (node) { node.remove(); });
+    });
+
+    return {
+      frame: frame, doc: doc, column: null, button: null, hudTip: null, tipTitle: null, count: null, tipKey: null, tipBody: null,
+      shownBadge: -1, shownKey: null, shownWords: -1, app: null, row: null, replant: null, box: null, boxInput: null, tip: null,
+      plan: null, list: null, strip: null, empties: null, more: null, filter: null, rows: [], growing: 0, firstGrowing: null,
+      placed: false, hasPanelStyle: false
+    };
   }
 
   // First in the tool column: the column is anchored at the bottom, so the first child sits on top and the game's own
-  // buttons do not move. The column hides itself in build mode, and the button with it.
-  function placeHudButton(doc) {
-    var column = doc.querySelector('.vertical-tools');
-    var existing = doc.querySelector('.' + HUD_CLASS);
+  // buttons do not move. The column hides itself in build mode, and the button with it. The button is built once and
+  // its count, key and tip are written in place.
+  function placeHudButton(page) {
+    var column = null;
 
-    if (!column || !state.isLive) {
-      if (existing) existing.remove();
+    if (state.isLive) {
+      if (!page.column || !page.column.isConnected) page.column = page.doc.querySelector('.vertical-tools');
+
+      column = page.column;
+    }
+
+    if (!column) {
+      if (page.button) page.button.remove();
+
+      page.button = null;
 
       return;
     }
 
-    if (existing && existing.parentNode === column && existing.getAttribute('data-version') === String(hudVersion)) return;
-    if (existing) existing.remove();
+    if (!page.button) {
+      addHudStyle(page.doc);
+      page.button = hudButton(page);
+    }
 
-    addHudStyle(doc);
-    var node = hudButton(doc);
+    showHudState(page);
 
-    node.setAttribute('data-etk-dock', DOCK_ORDER);
-    column.insertBefore(node, column.firstChild);
+    if (page.button.parentNode === column) return;
+
+    column.insertBefore(page.button, column.firstChild);
 
     if (!hasReportedHudPlaced) send('diag|HUD button placed in the tool column');
     hasReportedHudPlaced = true;
+  }
+
+  // The count, the key and the tip's words, each written only when it changed.
+  function showHudState(page) {
+    var words = wordsKey();
+
+    if (page.shownBadge !== state.badge) {
+      page.shownBadge = state.badge;
+
+      if (state.badge > 0) {
+        page.count.textContent = state.badge > 99 ? '99+' : String(state.badge);
+
+        if (page.count.parentNode !== page.button) page.button.insertBefore(page.count, page.hudTip);
+      } else {
+        page.count.remove();
+      }
+    }
+
+    if (page.shownKey !== state.key) {
+      page.shownKey = state.key;
+      page.tipKey.textContent = state.key;
+
+      if (!state.key) page.tipKey.remove();
+      else if (page.tipKey.parentNode !== page.tipTitle) page.tipTitle.appendChild(page.tipKey);
+    }
+
+    if (page.shownWords !== words) {
+      page.shownWords = words;
+      page.tipBody.textContent = say('tip');
+    }
   }
 
   function addHudStyle(doc) {
@@ -2211,21 +2340,26 @@
 
   // The same markup as the game's bag button: its classes, an svg icon, and the hover tip its stylesheet shows. The
   // HUD page watches its body for new buttons and tells the game where they are, so a click on this one reaches it.
-  function hudButton(doc) {
+  // The count badge and the key's keycap are made here and put in by showHudState while there is something to show.
+  function hudButton(page) {
+    var doc = page.doc;
     var node = doc.createElement('button');
+
     node.className = 'ui-btn icon-sq interactive-btn has-entry-tip ' + HUD_CLASS;
     node.setAttribute('data-interactive', '');
-    node.setAttribute('data-version', String(hudVersion));
+    node.setAttribute('data-etk-dock', DOCK_ORDER);
     node.appendChild(sprout(doc));
-
-    if (state.badge > 0) {
-      var count = doc.createElement('span');
-      count.className = 'fh-hud-badge';
-      count.textContent = state.badge > 99 ? '99+' : String(state.badge);
-      node.appendChild(count);
-    }
-
-    node.appendChild(entryTip(doc));
+    page.count = make(doc, 'span', 'fh-hud-badge', '');
+    page.tipKey = make(doc, 'span', 'entry-tip-key', '');
+    page.tipTitle = make(doc, 'div', 'entry-tip-title', 'Farm Hub');
+    page.tipBody = make(doc, 'div', 'entry-tip-body', '');
+    page.hudTip = make(doc, 'div', 'entry-tip', '');
+    page.hudTip.appendChild(page.tipTitle);
+    page.hudTip.appendChild(page.tipBody);
+    node.appendChild(page.hudTip);
+    page.shownBadge = -1;
+    page.shownKey = null;
+    page.shownWords = -1;
     node.addEventListener('click', function (e) {
       e.stopPropagation();
       send('toggle');
@@ -2244,30 +2378,6 @@
     svg.appendChild(path);
 
     return svg;
-  }
-
-  function entryTip(doc) {
-    var tip = doc.createElement('div');
-    var title = doc.createElement('div');
-    var body = doc.createElement('div');
-
-    tip.className = 'entry-tip';
-    title.className = 'entry-tip-title';
-    title.textContent = 'Farm Hub';
-    body.className = 'entry-tip-body';
-    body.textContent = say('tip');
-
-    if (state.key) {
-      var key = doc.createElement('span');
-      key.className = 'entry-tip-key';
-      key.textContent = state.key;
-      title.appendChild(key);
-    }
-
-    tip.appendChild(title);
-    tip.appendChild(body);
-
-    return tip;
   }
 
   // ---------- the game's plant panel ----------
@@ -2316,27 +2426,52 @@
   var NEEDS_CSS = '.mature-popover .is-growing ~ .is-growing ~ .is-growing ~ .is-growing{display:none}';
 
   var hudData = { ready: false };
+  // Each listed pot by its HUD id as { pot, key }; a pot whose data did not change keeps the same entry, so its row's
+  // line is not drawn again.
   var hudById = {};
-  var hudSeq = 0;
+  // The data without the pots and the empty pots, and the empty pots alone, as text; each seq is bumped when its text
+  // changes, so the plan, the strip and the empty pots are drawn again only then.
+  var hudPlanKey = '';
+  var hudEmptyKey = '';
+  var planSeq = 0;
+  var emptySeq = 0;
   var panelShow = 'needs';
   var hasReportedVue = false;
   var hasReportedPanel = false;
 
-  // What the plugin sends every couple of seconds for the panel (HudView): each listed pot's room and what it needs,
-  // the empty pots, and the Tend Garden plan.
+  // What the plugin sends for the panel when it changes (HudView): each listed pot's room and what it needs, the
+  // empty pots, and the Tend Garden plan.
   function hud(data) {
+    var before = hudById;
+
     hudData = data && data.ready ? data : { ready: false };
     hudById = {};
-    (hudData.pots || []).forEach(function (p) { hudById[p.show] = p; });
-    hudSeq++;
+    (hudData.pots || []).forEach(function (p) {
+      var key = JSON.stringify(p);
+      var kept = before[p.show];
+
+      hudById[p.show] = kept && kept.key === key ? kept : { pot: p, key: key };
+    });
+
+    var planKey = JSON.stringify(hudData, function (key, value) { return key === 'pots' || key === 'empty' ? undefined : value; });
+    var emptyKey = JSON.stringify(hudData.empty || []);
+
+    if (planKey !== hudPlanKey) planSeq++;
+    if (emptyKey !== hudEmptyKey) emptySeq++;
+
+    hudPlanKey = planKey;
+    hudEmptyKey = emptyKey;
     patchPagesSafely();
   }
 
-  // The HUD page's Vue state, which holds the plant rows' ids in the order the rows are drawn. Null if a game update
-  // moved it, and then the rows get no second line; the rest still works.
-  function vueState(doc) {
+  // The HUD page's Vue state, which holds the plant rows' ids in the order the rows are drawn, and whether the panel,
+  // its list and Tend Garden are shown. Null if a game update moved it, and then the rows get no second line and the
+  // panel is looked for on every poll; the rest still works.
+  function vueState(page) {
     try {
-      var app = doc.getElementById('app');
+      if (!page.app || !page.app.isConnected) page.app = page.doc.getElementById('app');
+
+      var app = page.app;
       var setup = app && app._vnode && app._vnode.component && app._vnode.component.setupState;
 
       return (setup && setup.state) || null;
@@ -2345,74 +2480,140 @@
     }
   }
 
-  function patchPlantPanel(doc) {
-    var row = doc.querySelector('.mature-toggle-row');
+  // One of the Vue state's switches: true or false, or null when it is not there to read.
+  function vueFlag(vue, name) {
+    return vue && typeof vue[name] === 'boolean' ? vue[name] : null;
+  }
 
-    if (!row || !state.isLive || !hudData.ready) {
-      doc.querySelectorAll('.fh-hudadd').forEach(function (node) { node.remove(); });
-      setFilterStyle(doc, false);
+  // Works from the nodes found last time while they are still in the page, and searches only for one that is gone
+  // and that the Vue state says is shown. A poll where nothing changed searches nothing and draws nothing.
+  function patchPlantPanel(page) {
+    if (!state.isLive || !hudData.ready) {
+      clearPanel(page);
 
       return;
     }
 
-    var vue = vueState(doc);
+    var vue = vueState(page);
+
+    if (vue && vueFlag(vue, 'maturePlantsActive') !== null && !(vue.maturePlantsActive && vue.maturePlants && vue.maturePlants.length > 0)) {
+      clearPanel(page);
+
+      return;
+    }
+
+    if (!page.row || !page.row.isConnected) page.row = page.doc.querySelector('.mature-toggle-row');
+
+    if (!page.row) {
+      clearPanel(page);
+
+      return;
+    }
 
     if (!vue && !hasReportedVue) send('diag|the HUD plant panel has no Vue state to read, so its rows get no second line');
     hasReportedVue = hasReportedVue || !vue;
+    page.placed = true;
 
-    addPanelStyle(doc);
-    placePresetsBox(doc, row);
-    placePlan(doc, vue);
+    if (!page.hasPanelStyle) {
+      addPanelStyle(page.doc);
+      page.hasPanelStyle = true;
+    }
 
-    var list = doc.querySelector('.mature-popover');
+    placePresetsBox(page, vue);
+    placePlan(page, vue);
 
-    setFilterStyle(doc, !!list && panelShow === 'needs');
+    // The list is drawn only while the panel is open; one already found is used until the game takes it away.
+    if (page.list && !page.list.isConnected) page.list = null;
+    if (!page.list && vueFlag(vue, 'maturePlantsExpanded') !== false) page.list = (page.row.parentNode || page.doc).querySelector('.mature-popover');
+
+    var list = page.list;
+
+    setFilterStyle(page, !!list && panelShow === 'needs');
 
     if (list) {
-      var rows = gameRows(list);
+      var rows = readRows(page, list);
+      var needs = rows.length - page.growing + (hudData.empty || []).length;
+      var all = rows.length + (hudData.empty || []).length;
 
-      placeStrip(doc, list, rows, vue);
-      placeRowLines(doc, rows, vue);
-      placeEmpties(doc, list);
-      placeMore(doc, list, rows);
+      placeStrip(page, list, vue, needs, all);
+      placeRowLines(page, rows, vue);
+      placeEmpties(page, list);
+      placeMore(page, list);
     }
 
     if (!hasReportedPanel) send('diag|Farm Hub added to the HUD plant panel');
     hasReportedPanel = true;
   }
 
-  function gameRows(list) {
-    return Array.prototype.filter.call(list.querySelectorAll('.mature-item-row'), isGameRow);
+  // Takes out everything added to the panel, once: after that there is nothing placed and nothing to look for.
+  function clearPanel(page) {
+    if (!page.placed) return;
+
+    page.placed = false;
+    page.doc.querySelectorAll('.fh-hudadd').forEach(function (node) { node.remove(); });
+    setFilterStyle(page, false);
+    page.row = page.replant = page.box = page.boxInput = page.tip = page.plan = page.list = page.strip = page.empties = page.more = null;
   }
 
-  function isGameRow(node) { return !node.classList.contains('fh-hudadd'); }
+  // The game's own rows, in order, from one walk of the list's children; the growing ones are counted on the way.
+  function readRows(page, list) {
+    var rows = page.rows;
+    var children = list.children;
 
-  function isGrowingRow(node) { return node.classList.contains('is-growing'); }
+    rows.length = 0;
+    page.growing = 0;
+    page.firstGrowing = null;
+
+    for (var i = 0; i < children.length; i++) {
+      var node = children[i];
+
+      if (!node.classList.contains('mature-item-row') || node.classList.contains('fh-hudadd')) continue;
+
+      rows.push(node);
+
+      if (node.classList.contains('is-growing')) {
+        page.growing++;
+        page.firstGrowing = page.firstGrowing || node;
+      }
+    }
+
+    return rows;
+  }
 
   function isReplantOn(vue) { return !!(vue && vue.matureReplantOn); }
 
   // Beside the game's Replant box, only while the game shows that box (Tend Garden unlocked). Built once.
-  function placePresetsBox(doc, row) {
-    var box = row.querySelector('.fh-presets-chk');
+  function placePresetsBox(page, vue) {
+    var row = page.row;
+    var isFromPresets = !!hudData.fromPresets;
 
-    if (!row.querySelector('#matureReplantChk')) {
-      if (box) box.remove();
+    if (page.replant && page.replant.parentNode !== row) page.replant = null;
+    if (!page.replant && vueFlag(vue, 'maturePatrolUnlocked') !== false) page.replant = row.querySelector('#matureReplantChk');
+
+    if (!page.replant) {
+      if (page.box) page.box.remove();
+
+      page.box = page.boxInput = null;
 
       return;
     }
 
-    if (!box) {
-      box = presetsBox(doc);
-      row.insertBefore(box, row.querySelector('.mature-toggle-chevron'));
+    if (!page.box || page.box.parentNode !== row) {
+      if (page.box) page.box.remove();
+
+      page.box = presetsBox(page);
+      row.insertBefore(page.box, row.querySelector('.mature-toggle-chevron'));
     }
 
-    box.querySelector('input').checked = !!hudData.fromPresets;
+    if (page.boxInput.checked !== isFromPresets) page.boxInput.checked = isFromPresets;
   }
 
-  function presetsBox(doc) {
+  function presetsBox(page) {
+    var doc = page.doc;
     var label = make(doc, 'label', 'mature-replant-chk fh-presets-chk fh-hudadd', '');
     var input = doc.createElement('input');
 
+    page.boxInput = input;
     label.setAttribute('data-interactive', '');
     input.type = 'checkbox';
     label.appendChild(input);
@@ -2442,21 +2643,28 @@
   }
 
   // Our part of the game's Tend Garden tip, after its title and key.
-  function placePlan(doc, vue) {
-    var tip = doc.querySelector('#maturePatrolBtn') && doc.querySelector('#maturePatrolBtn').querySelector('.entry-tip');
+  function placePlan(page, vue) {
+    if (page.tip && !page.tip.isConnected) page.tip = null;
+
+    if (!page.tip && vueFlag(vue, 'maturePatrolUnlocked') !== false) {
+      var patrol = page.row.querySelector('#maturePatrolBtn');
+
+      page.tip = patrol && patrol.querySelector('.entry-tip');
+    }
+
+    var tip = page.tip;
 
     if (!tip) return;
 
-    var key = hudSeq + '|' + isReplantOn(vue);
-    var old = tip.querySelector('.fh-plan');
+    var key = planSeq + '|' + isReplantOn(vue) + '|' + catSeq + '|' + wordsKey();
+    var old = page.plan;
 
-    if (old && old.getAttribute('data-key') === key) return;
+    if (old && old.parentNode === tip && old.getAttribute('data-key') === key) return;
     if (old) old.remove();
 
-    var block = planTip(doc, vue);
-
-    block.setAttribute('data-key', key);
-    tip.appendChild(block);
+    page.plan = planTip(page.doc, vue);
+    page.plan.setAttribute('data-key', key);
+    tip.appendChild(page.plan);
   }
 
   function planTip(doc, vue) {
@@ -2533,11 +2741,10 @@
   }
 
   // "Next Tend: 6 chores, 18 of 40 stamina, then plant 2, fertilize 1", the filter, and the way into Farm Hub.
-  function placeStrip(doc, list, rows, vue) {
-    var needs = rows.filter(function (r) { return !isGrowingRow(r); }).length + (hudData.empty || []).length;
-    var all = rows.length + (hudData.empty || []).length;
-    var key = [hudSeq, isReplantOn(vue), panelShow, needs, all].join('|');
-    var strip = list.querySelector('.fh-strip');
+  function placeStrip(page, list, vue, needs, all) {
+    var doc = page.doc;
+    var key = planSeq + '|' + isReplantOn(vue) + '|' + panelShow + '|' + needs + '|' + all + '|' + wordsKey();
+    var strip = page.strip;
 
     if (strip && strip.parentNode === list && list.firstChild === strip && strip.getAttribute('data-key') === key) return;
     if (strip) strip.remove();
@@ -2575,6 +2782,7 @@
     });
     strip.appendChild(link);
     list.insertBefore(strip, list.firstChild);
+    page.strip = strip;
   }
 
   function pick(doc, mode, words) {
@@ -2595,45 +2803,51 @@
     patchPagesSafely();
   }
 
-  function setFilterStyle(doc, isOn) {
-    var style = doc.getElementById(FILTER_STYLE_ID);
-
+  function setFilterStyle(page, isOn) {
     if (!isOn) {
-      if (style) style.remove();
+      if (page.filter) page.filter.remove();
+
+      page.filter = null;
 
       return;
     }
 
-    if (style) return;
+    if (page.filter && page.filter.isConnected) return;
 
-    style = doc.createElement('style');
+    var doc = page.doc;
+    var style = doc.createElement('style');
+
     style.id = FILTER_STYLE_ID;
     style.textContent = NEEDS_CSS;
     (doc.head || doc.body).appendChild(style);
+    page.filter = style;
   }
 
-  // Rows are drawn in the order of the Vue state's plant list, so row i is that list's plant i.
-  function placeRowLines(doc, rows, vue) {
+  // Rows are drawn in the order of the Vue state's plant list, so row i is that list's plant i. Each row remembers its
+  // line; the line is drawn again only when that pot's data, the Replant box, the catalog or the words changed.
+  function placeRowLines(page, rows, vue) {
     var plants = (vue && vue.maturePlants) || [];
     var replantOn = isReplantOn(vue);
+    var shared = replantOn + '|' + !!hudData.fromPresets + '|' + catSeq + '|' + wordsKey();
 
     for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
       var plant = plants[i];
-      var data = plant ? hudById[String(plant.showInstanceId)] : null;
-      var key = data ? data.show + '|' + hudSeq + '|' + replantOn : '';
-      var sub = null;
+      var entry = plant ? hudById[String(plant.showInstanceId)] || null : null;
+      var sub = row.__fhSub && row.__fhSub.parentNode === row ? row.__fhSub : null;
 
-      for (var c = 0; c < rows[i].children.length; c++) {
-        if (rows[i].children[c].classList.contains('fh-sub')) sub = rows[i].children[c];
-      }
-
-      if (sub && sub.getAttribute('data-key') === key) continue;
+      if (sub ? sub.__fhEntry === entry && sub.__fhShared === shared : !entry) continue;
       if (sub) sub.remove();
-      if (!data) continue;
 
-      sub = rowLine(doc, data, replantOn);
-      sub.setAttribute('data-key', key);
-      rows[i].appendChild(sub);
+      row.__fhSub = null;
+
+      if (!entry) continue;
+
+      sub = rowLine(page.doc, entry.pot, replantOn);
+      sub.__fhEntry = entry;
+      sub.__fhShared = shared;
+      row.appendChild(sub);
+      row.__fhSub = sub;
     }
   }
 
@@ -2671,28 +2885,32 @@
   }
 
   // The empty pots go between the pots that need the player and the growing ones, as the game sorts growing last. The
-  // block is rebuilt only when the plugin sends new data, and moved back if the game's rows moved around it.
-  function placeEmpties(doc, list) {
+  // block is rebuilt only when the empty pots, the catalog or the words changed, and moved back if the game's rows moved
+  // around it.
+  function placeEmpties(page, list) {
     var empties = hudData.empty || [];
-    var block = list.querySelector('.fh-empties');
-    var firstGrowing = gameRows(list).filter(isGrowingRow)[0] || null;
+    var block = page.empties;
+    var firstGrowing = page.firstGrowing;
 
     if (!empties.length && !firstGrowing) {
       if (block) block.remove();
 
+      page.empties = null;
+
       return;
     }
 
-    var key = hudSeq + '|' + (firstGrowing ? 'g' : '');
+    var key = emptySeq + '|' + (firstGrowing ? 'g' : '') + '|' + catSeq + '|' + wordsKey();
 
-    if (!block || block.getAttribute('data-key') !== key) {
+    if (!block || block.__fhKey !== key) {
       if (block) block.remove();
 
-      block = emptiesBlock(doc, empties, !!firstGrowing);
-      block.setAttribute('data-key', key);
+      block = emptiesBlock(page.doc, empties, !!firstGrowing);
+      block.__fhKey = key;
+      page.empties = block;
     }
 
-    if (block.parentNode !== list || nextOf(block) !== firstGrowing) list.insertBefore(block, firstGrowing);
+    if (block.parentNode !== list || block.nextElementSibling !== firstGrowing) list.insertBefore(block, firstGrowing);
   }
 
   function emptiesBlock(doc, empties, hasGrowing) {
@@ -2748,37 +2966,33 @@
   }
 
   // "+ 4 more growing" under the list while Needs you hides them; a click shows them all.
-  function placeMore(doc, list, rows) {
-    var hidden = panelShow === 'needs' ? Math.max(0, rows.filter(isGrowingRow).length - SHOWN_GROWING) : 0;
-    var more = list.querySelector('.fh-more');
-    var key = String(hidden);
+  function placeMore(page, list) {
+    var hidden = panelShow === 'needs' ? Math.max(0, page.growing - SHOWN_GROWING) : 0;
+    var more = page.more;
+    var key = hidden + '|' + wordsKey();
 
     if (!hidden) {
       if (more) more.remove();
 
+      page.more = null;
+
       return;
     }
 
-    if (!more || more.getAttribute('data-key') !== key) {
+    if (!more || more.__fhKey !== key) {
       if (more) more.remove();
 
-      more = make(doc, 'div', 'fh-more fh-hudadd', say('hMore', hidden));
-      more.setAttribute('data-key', key);
+      more = make(page.doc, 'div', 'fh-more fh-hudadd', say('hMore', hidden));
+      more.__fhKey = key;
       more.setAttribute('data-interactive', '');
       more.addEventListener('click', function (e) {
         e.stopPropagation();
         setShow('all');
       });
+      page.more = more;
     }
 
-    if (more.parentNode !== list || nextOf(more) !== null) list.appendChild(more);
-  }
-
-  function nextOf(node) {
-    var siblings = node.parentNode ? node.parentNode.children : [];
-    var at = Array.prototype.indexOf.call(siblings, node);
-
-    return at >= 0 && at + 1 < siblings.length ? siblings[at + 1] : null;
+    if (more.parentNode !== list || more.nextElementSibling !== null) list.appendChild(more);
   }
 
   // An item's picture, or nothing when the game has none. Icon paths are relative to the root document's folder and

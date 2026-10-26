@@ -46,6 +46,9 @@ internal static class TendHooks
             "Tend Garden also plants and fertilizes from the presets", "Tend Garden does not plant or fertilize from the presets");
     }
 
+    /// <summary>Whether a walk has handed over a pot to sow; asked every frame, so TakeSows builds its list only when there is one.</summary>
+    public static bool HasSows => Sows.Count > 0;
+
     /// <summary>The pots to sow from their presets since the last call, in the order the walks reached them.</summary>
     public static List<long> TakeSows()
     {

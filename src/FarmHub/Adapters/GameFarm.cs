@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using FarmHub.Core;
 using GameCore.HotUpdate;
 using GameCore.HotUpdate.Battle.Logic;
@@ -23,27 +24,124 @@ internal sealed class GameFarm : IFarmGame
     private const float SuitabilitySeconds = 30f;
     private const Problems KnownProblems = Problems.Pests | Problems.Weeds | Problems.Dry | Problems.TooDark | Problems.TooBright | Problems.TooCold | Problems.NeedsFeed;
 
+    // The periodic read and the catalog build each run a slice per frame, each slice stopping once it has used this
+    // much of the frame. A step is one pot, one catalog entry, or this many of the cheap entries in between.
+    private const double SliceMilliseconds = 0.5;
+    private const int RowsPerStep = 64;
+    private const int CropsPerStep = 4;
+    private const int ShowIdsPerStep = 16;
+    private const string NoIconsNote = "no web icons, crops and items will show letters instead: ";
+
+    private static readonly long SliceTicks = (long)(SliceMilliseconds * Stopwatch.Frequency / 1000.0);
+    private static readonly Func<bool> NeverSpent = () => false;
+    private static readonly FarmRead NoGameRead = new FarmRead.NoGame();
+
+    /// <summary>A pot that is not empty is never checked for crops it cannot grow; they all share this set, which is never changed.</summary>
+    private static readonly HashSet<int> NoCrops = new();
+
     private readonly Action<string> _log;
     private readonly HashSet<string> _reportedFailures = new();
+    private readonly Func<bool> _isSliceSpent;
+    private long _sliceEndsAt;
 
+    private Task<(IconIndex Icons, string Note)>? _iconScan;
     private IconIndex? _icons;
+
     private (IntPtr Config, bool IsChinese) _catalogKey;
     private FarmCatalog? _catalog;
+    private List<Config_Plant> _cropRows = new();
+    private Dictionary<int, Config_Plant> _cropRowsById = new();
+
+    private SlicedJob? _build;
+    private (IntPtr Config, bool IsChinese) _buildKey;
+    private FarmCatalog? _built;
+    private List<Config_Plant> _builtCropRows = new();
+    private bool _isSyncRead;
+
+    private ReadRun? _read;
+
+    // Names come from the tables and the language, so they hold until the catalog is built again or another game loads.
+    private readonly Dictionary<int, string> _areaNames = new();
+    private readonly Dictionary<int, string?> _robotNames = new();
 
     /// <summary>A pot's light and heat change only when the player builds or moves something, so its check is kept a while.</summary>
     private readonly Dictionary<(long PotId, int KindId), (float At, HashSet<int> Crops)> _unsuitable = new();
-    private bool _hasRecheckedThisRead;
+    private (IntPtr World, string? SaveKey) _memoKey;
 
     public GameFarm(Action<string> log)
     {
         _log = log;
+        _isSliceSpent = () => Stopwatch.GetTimestamp() >= _sliceEndsAt;
     }
 
+    /// <summary>
+    /// The farm read a slice per frame, so no frame carries all of it: null while it is under way, the read once it is
+    /// done. The next call starts a new read. A read whose game went away starts over.
+    /// </summary>
+    public FarmRead? AdvanceRead()
+    {
+        try
+        {
+            AreIconsIn();
+
+            var game = LoadedGame();
+
+            if (game == null)
+            {
+                _read = null;
+
+                return NoGameRead;
+            }
+
+            if (_read == null || _read.World != game.Value.World.Pointer) _read = StartRead(game.Value, isSync: false);
+
+            var run = _read;
+
+            _sliceEndsAt = Stopwatch.GetTimestamp() + SliceTicks;
+
+            if (!run.Job.Advance(_isSliceSpent)) return null;
+
+            _read = null;
+
+            return run.Result ?? throw new InvalidOperationException("the read ended without a result");
+        }
+        catch (Exception ex)
+        {
+            _read = null;
+            ReportOnce("read", ex);
+
+            return new FarmRead.NotReady(Texts.ReadFailed.Pick(GameLanguage.IsChinese()));
+        }
+    }
+
+    /// <summary>The next AdvanceRead starts a fresh read, so a change just made is in what it finds.</summary>
+    public void RestartRead() => _read = null;
+
+    /// <summary>The whole farm, read now. Presses use it: each reads the farm right before it acts.</summary>
     public FarmRead Read()
     {
         try
         {
-            return ReadWorld();
+            AreIconsIn();
+
+            var game = LoadedGame();
+
+            if (game == null) return NoGameRead;
+
+            var run = StartRead(game.Value, isSync: true);
+
+            _isSyncRead = true;
+
+            try
+            {
+                if (!run.Job.Advance(NeverSpent)) throw new InvalidOperationException("the read stopped to wait");
+            }
+            finally
+            {
+                _isSyncRead = false;
+            }
+
+            return run.Result ?? throw new InvalidOperationException("the read ended without a result");
         }
         catch (Exception ex)
         {
@@ -65,6 +163,35 @@ internal sealed class GameFarm : IFarmGame
 
         return true;
     });
+
+    /// <summary>
+    /// Whether one pot is still empty and free right now, read the way the farm read reads it: for a press made on a read
+    /// a few frames old, so a pot the player or a robot took since is left alone.
+    /// </summary>
+    public bool IsStillPlantable(long potId)
+    {
+        try
+        {
+            var game = LoadedGame();
+            var furniture = game == null ? null : FindPot(game.Value.Agents, potId);
+            var plant = furniture == null ? null : PlantOf(furniture);
+
+            if (game == null || plant == null || StateOf(plant._State_k__BackingField) != PotState.Empty) return false;
+
+            var world = game.Value.World;
+            var claims = world._PlantChoreManager?._claims;
+
+            if (claims != null && claims.TryGetValue(potId, out var claimedBy) && claimedBy != 0L) return false;
+
+            return !(plant._IsPendingPlant_k__BackingField || plant.IsPendingFertWork() || world._ActionManager?.HasActionInQueue(game.Value.Role._InstanceId_k__BackingField, PlantAction, potId) == true);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("pot recheck", ex);
+
+            return false;
+        }
+    }
 
     /// <summary>The fertilizer picker's confirm button on a growing pot.</summary>
     public bool Fertilize(long potId, int fertId) => Press("fertilize", () =>
@@ -120,7 +247,18 @@ internal sealed class GameFarm : IFarmGame
     public bool SetRobotTier(long robotId, int tier, int seedId, int fertId) => Press("robot tier", () =>
     {
         var game = LoadedGame();
-        var robot = game == null ? null : PlanterRobots(game.Value.Agents).FirstOrDefault(found => found.Npc.InstanceId == robotId).Robot;
+        RobotComponent? robot = null;
+
+        if (game != null)
+        {
+            foreach (var found in PlanterRobots(game.Value.Agents))
+            {
+                if (found.Npc._InstanceId_k__BackingField != robotId) continue;
+
+                robot = found.Robot;
+                break;
+            }
+        }
 
         if (robot == null || tier < 0 || tier >= RobotTiers) return false;
 
@@ -134,34 +272,175 @@ internal sealed class GameFarm : IFarmGame
         return isSet;
     });
 
-    private FarmRead ReadWorld()
+    private ReadRun StartRead(Game game, bool isSync)
     {
-        var game = LoadedGame();
+        var run = new ReadRun(game.World.Pointer, isSync, UnityEngine.Time.unscaledTime);
 
-        if (game == null) return new FarmRead.NoGame();
+        run.Job = new SlicedJob(ReadSteps(game, run));
 
-        var (world, config, agents, role) = game.Value;
+        return run;
+    }
+
+    /// <summary>
+    /// The read's steps: a step per pot (and per few crops of an empty pot's suitability check), and a step per batch of
+    /// the furniture, robots, items and HUD ids in between. Only the catalog build ever waits, for the icon scan.
+    /// </summary>
+    private IEnumerable<bool> ReadSteps(Game game, ReadRun run)
+    {
+        var (world, config, agents, role) = (game.World, game.Config, game.Agents, game.Role);
         var isChinese = GameLanguage.IsChinese();
 
-        if (!IsHome(agents)) return new FarmRead.NotReady(Texts.Away.Pick(isChinese));
-
-        var catalog = Catalog(config, isChinese);
-
-        _hasRecheckedThisRead = false;
-
-        var roleId = role.InstanceId;
-        var areaNames = new Dictionary<int, string>();
-        var pots = ReadPots(world, config, agents, catalog, roleId, areaNames);
-        var robots = ReadRobots(config, agents);
-        var owned = ReadOwned(world._ItemManager, catalog, roleId);
-        var playerFloor = Floors.Level(agents.GetAgentFloor(roleId));
-
-        return new FarmRead.Ready(new FarmWorld(catalog, pots, robots, owned, areaNames, playerFloor, SaveSlot.CurrentKey())
+        if (!IsHome(agents))
         {
-            Stamina = ReadStamina(role),
-            ChoreCost = ReadChoreCost(),
-            ShowIds = ReadShowIds(pots),
+            run.Result = new FarmRead.NotReady(Texts.Away.Pick(isChinese));
+
+            yield break;
+        }
+
+        FarmCatalog? catalog;
+
+        while ((catalog = CatalogFor(config, isChinese, run.IsSync ? NeverSpent : _isSliceSpent)) == null)
+        {
+            if (run.IsSync) throw new InvalidOperationException("the catalog was not built");
+
+            yield return false;
+        }
+
+        var cropRows = _cropRows;
+        var cropRowsById = _cropRowsById;
+        var roleId = role._InstanceId_k__BackingField;
+        var saveKey = SaveSlot.CurrentKey();
+
+        KeepMemoFor(run.World, saveKey);
+
+        // A fresh list the game builds for each call, so it is safe to hold across frames.
+        var furnitures = agents.GetAllFurnitures();
+        var count = furnitures?.Count ?? 0;
+        var claims = world._PlantChoreManager?._claims;
+        var tags = world._TagManager;
+        var pots = new List<Pot>();
+        var areaNames = new Dictionary<int, string>();
+        var scanned = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            if (++scanned >= RowsPerStep)
+            {
+                scanned = 0;
+
+                yield return true;
+            }
+
+            var furniture = furnitures![i];
+
+            // The pot kind check is one read; the shown checks are several, and most furniture is not a pot.
+            if (furniture == null || !catalog.Kinds.TryGetValue(furniture._AgentConfigId_k__BackingField, out var kind) || !IsShownPot(tags, agents, furniture)) continue;
+
+            var plant = PlantOf(furniture);
+
+            if (plant == null) continue;
+
+            IReadOnlySet<int> unsuitable = NoCrops;
+
+            if (StateOf(plant._State_k__BackingField) == PotState.Empty)
+            {
+                var key = (furniture._InstanceId_k__BackingField, kind.Id);
+
+                // One stale pot is checked again per read, so a home of empty pots never asks all of them in one read.
+                if (_unsuitable.TryGetValue(key, out var kept) && (run.Now - kept.At < SuitabilitySeconds || run.HasRechecked))
+                {
+                    unsuitable = kept.Crops;
+                }
+                else
+                {
+                    if (_unsuitable.ContainsKey(key)) run.HasRechecked = true;
+
+                    var found = new HashSet<int>();
+
+                    // The game's own check, once per crop, is the costly part of a read, so it is spread over steps.
+                    for (var crop = 0; crop < cropRows.Count; crop++)
+                    {
+                        if (!CheckCrop(furniture, cropRows[crop], found)) break;
+                        if (crop % CropsPerStep == CropsPerStep - 1) yield return true;
+                    }
+
+                    _unsuitable[key] = (run.Now, found);
+                    unsuitable = found;
+                }
+            }
+
+            if (ReadPot(world, kind, furniture, plant, roleId, claims, cropRowsById, areaNames, unsuitable) is { } pot) pots.Add(pot);
+
+            scanned = 0;
+
+            yield return true;
+        }
+
+        var robots = new List<Robot>();
+
+        foreach (var (npc, component) in PlanterRobots(agents))
+        {
+            if (ReadRobot(config, agents, npc, component, isChinese, robots.Count + 1) is { } robot) robots.Add(robot);
+
+            yield return true;
+        }
+
+        var owned = new Dictionary<int, int>();
+        var available = world._ItemManager?.GetAllAvailableItems(roleId);
+        var items = available?.Count ?? 0;
+
+        for (var i = 0; i < items; i++)
+        {
+            if (i % RowsPerStep == RowsPerStep - 1) yield return true;
+
+            AddOwned(available![i], catalog, roleId, owned);
+        }
+
+        var playerFloor = Floors.Level(agents.GetAgentFloor(roleId));
+        var stamina = ReadStamina(role);
+        var choreCost = ReadChoreCost();
+
+        yield return true;
+
+        var showIds = new Dictionary<long, long>();
+
+        for (var from = 0; from < pots.Count; from += ShowIdsPerStep)
+        {
+            if (!AddShowIds(pots, from, showIds)) break;
+
+            yield return true;
+        }
+
+        run.Result = new FarmRead.Ready(new FarmWorld(catalog, pots, robots, owned, areaNames, playerFloor, saveKey)
+        {
+            Stamina = stamina,
+            ChoreCost = choreCost,
+            ShowIds = showIds,
         });
+    }
+
+    /// <summary>Pot checks and room names belong to one game: another save or world starts them over.</summary>
+    private void KeepMemoFor(IntPtr world, string? saveKey)
+    {
+        if (_memoKey.World == world && _memoKey.SaveKey == saveKey) return;
+
+        _memoKey = (world, saveKey);
+        _unsuitable.Clear();
+        _areaNames.Clear();
+    }
+
+    private PlantComponent? PlantOf(Furniture furniture)
+    {
+        try
+        {
+            return AgentTools.GetAgentComponent<PlantComponent>(furniture);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("pot read", ex);
+
+            return null;
+        }
     }
 
     private float? ReadStamina(LeadingRole role)
@@ -192,33 +471,36 @@ internal sealed class GameFarm : IFarmGame
         }
     }
 
-    /// <summary>The HUD's plant list names pots by their shown model's id; the page matches its rows to pots with these.</summary>
-    private Dictionary<long, long> ReadShowIds(List<Pot> pots)
+    /// <summary>
+    /// The HUD's plant list names pots by their shown model's id; the page matches its rows to pots with these. One batch
+    /// of pots per call; false once there is nothing more to add (no shown world, or a failure).
+    /// </summary>
+    private bool AddShowIds(List<Pot> pots, int from, Dictionary<long, long> ids)
     {
-        var ids = new Dictionary<long, long>();
-
         try
         {
             var models = GameSingleton.Existing<GameCore.HotUpdate.Battle.Show.BattleShowWorld>()?._AgentModelManager;
 
-            if (models == null) return ids;
+            if (models == null) return false;
 
-            foreach (var pot in pots)
+            for (var i = from; i < pots.Count && i < from + ShowIdsPerStep; i++)
             {
-                var model = models.GetAgentModelByLogicInstanceId(pot.Id);
+                var model = models.GetAgentModelByLogicInstanceId(pots[i].Id);
 
-                if (model != null) ids[pot.Id] = model.InstanceId;
+                if (model != null) ids[pots[i].Id] = model._InstanceId_k__BackingField;
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             ReportOnce("show id read", ex);
-        }
 
-        return ids;
+            return false;
+        }
     }
 
-    private static (BattleLogicWorld World, ConfigManager Config, AgentManager Agents, LeadingRole Role)? LoadedGame()
+    private static Game? LoadedGame()
     {
         var world = GameSingleton.Existing<BattleLogicWorld>();
         var config = GameSingleton.Existing<ConfigManager>();
@@ -227,99 +509,85 @@ internal sealed class GameFarm : IFarmGame
 
         if (world == null || config == null || agents == null || role == null || world._GameTimeManager?.WorldStateType != WorldStateType.PostDisaster) return null;
 
-        return (world, config, agents, role);
+        return new Game(world, config, agents, role);
     }
 
     /// <summary>Every pot the plant HUD would show: placed, at home, on an unlocked floor and in an unlocked area.</summary>
-    private List<Pot> ReadPots(BattleLogicWorld world, ConfigManager config, AgentManager agents, FarmCatalog catalog, long roleId, Dictionary<int, string> areaNames)
+    private static bool IsShownPot(TagManager? tags, AgentManager agents, Furniture furniture)
     {
-        var pots = new List<Pot>();
-        var furnitures = agents.GetAllFurnitures();
-        var claims = world._PlantChoreManager?._claims;
+        var map = furniture._MapConfigId_k__BackingField;
 
-        for (var i = 0; furnitures != null && i < furnitures.Count; i++)
-        {
-            var furniture = furnitures[i];
-
-            // The pot kind check is one read; the shown checks are several, and most furniture is not a pot.
-            if (furniture == null || !catalog.Kinds.ContainsKey(furniture.AgentConfigId) || !IsShownPot(world, agents, furniture)) continue;
-
-            try
-            {
-                var plant = AgentTools.GetAgentComponent<PlantComponent>(furniture);
-
-                if (plant == null) continue;
-
-                var robotId = claims != null && claims.TryGetValue(furniture.InstanceId, out var claimedBy) ? claimedBy : 0L;
-                var pending = plant.IsPendingPlant || plant.IsPendingFertWork() || world._ActionManager?.HasActionInQueue(roleId, PlantAction, furniture.InstanceId) == true;
-
-                pots.Add(ReadPot(config, catalog, furniture, plant, ReadArea(furniture, areaNames), robotId, pending));
-            }
-            catch (Exception ex)
-            {
-                ReportOnce("pot read", ex);
-            }
-        }
-
-        return pots;
+        return furniture._IsShow_k__BackingField && agents.IsHomeMap(map) && FloorTagConstants.IsMapPointUnlocked(tags, map) && AreaUnlockConstants.IsFurnitureAreaUnlocked(furniture);
     }
 
-    private static bool IsShownPot(BattleLogicWorld world, AgentManager agents, Furniture furniture) =>
-        furniture.IsShow && agents.IsHomeMap(furniture.MapConfigId) && FloorTagConstants.IsMapPointUnlocked(world._TagManager, furniture.MapConfigId) && AreaUnlockConstants.IsFurnitureAreaUnlocked(furniture);
-
-    private Pot ReadPot(ConfigManager config, FarmCatalog catalog, Furniture furniture, PlantComponent plant, int area, long robotId, bool isPending)
+    private Pot? ReadPot(
+        BattleLogicWorld world, PotKind kind, Furniture furniture, PlantComponent plant, long roleId,
+        Il2CppSystem.Collections.Generic.Dictionary<long, long>? claims, Dictionary<int, Config_Plant> cropRows, Dictionary<int, string> areaNames, IReadOnlySet<int> unsuitable)
     {
-        var state = StateOf(plant.State);
-        var kind = catalog.Kinds[furniture.AgentConfigId];
-        var isGrowing = state == PotState.Growing;
-        var now = plant.GetCurrentTotalSeconds();
-        var remain = isGrowing ? TimeToRipe(plant, now) : 0;
-        var total = isGrowing ? plant.GetActualGrowthTotalSeconds() : 0;
-        var progress = state switch
+        try
         {
-            PotState.Growing => total > 0 ? 1f - (float)remain / total : 0f,
-            PotState.Ripe or PotState.Withered or PotState.Poor => 1f,
-            _ => 0f,
-        };
+            var potId = furniture._InstanceId_k__BackingField;
+            var robotId = claims != null && claims.TryGetValue(potId, out var claimedBy) ? claimedBy : 0L;
+            var isPending = plant._IsPendingPlant_k__BackingField || plant.IsPendingFertWork() || world._ActionManager?.HasActionInQueue(roleId, PlantAction, potId) == true;
+            var area = ReadArea(furniture, areaNames);
+            var state = StateOf(plant._State_k__BackingField);
+            var isGrowing = state == PotState.Growing;
+            var now = isGrowing || state == PotState.Ripe ? plant.GetCurrentTotalSeconds() : 0;
+            var remain = isGrowing ? TimeToRipe(plant, now) : 0;
+            var total = isGrowing ? plant.GetActualGrowthTotalSeconds() : 0;
+            var progress = state switch
+            {
+                PotState.Growing => total > 0 ? 1f - (float)remain / total : 0f,
+                PotState.Ripe or PotState.Withered or PotState.Poor => 1f,
+                _ => 0f,
+            };
 
-        return new Pot(
-            furniture.InstanceId,
-            furniture.AgentConfigId,
-            Floors.Level(furniture.MapConfigId),
-            area,
-            state,
-            state == PotState.Empty ? 0 : plant.PlantConfigId,
-            (Problems)(int)plant.AnomalyFlags & KnownProblems,
-            progress,
-            isGrowing ? remain / SecondsPerHour : null,
-            state == PotState.Ripe ? HoursToRot(config, plant, now) : null,
-            state == PotState.Empty ? 0 : plant.FertItemConfigId,
-            isPending,
-            robotId,
-            !kind.NeedsPower || IsPowered(plant),
-            state == PotState.Empty ? Unsuitable(config, catalog, furniture) : new HashSet<int>());
+            return new Pot(
+                potId,
+                kind.Id,
+                Floors.Level(furniture._MapConfigId_k__BackingField),
+                area,
+                state,
+                state == PotState.Empty ? 0 : plant._PlantConfigId_k__BackingField,
+                (Problems)(int)plant._AnomalyFlags_k__BackingField & KnownProblems,
+                progress,
+                isGrowing ? remain / SecondsPerHour : null,
+                state == PotState.Ripe ? HoursToRot(cropRows, plant, now) : null,
+                state == PotState.Empty ? 0 : plant._FertItemConfigId_k__BackingField,
+                isPending,
+                robotId,
+                !kind.NeedsPower || IsPowered(plant),
+                unsuitable);
+        }
+        catch (Exception ex)
+        {
+            ReportOnce("pot read", ex);
+
+            return null;
+        }
     }
 
     /// <summary>A stalled crop does not grow, so the stall so far is added back, as the HUD's countdown does.</summary>
     private static int TimeToRipe(PlantComponent plant, int now)
     {
         var remain = plant.GetRemainSeconds();
-        var stallStart = plant.AnomalyStallStartSeconds;
+        var stallStart = plant._AnomalyStallStartSeconds_k__BackingField;
 
-        return plant.AnomalyFlags == 0 || stallStart <= 0 ? remain : remain + Math.Max(0, now - stallStart);
+        return plant._AnomalyFlags_k__BackingField == 0 || stallStart <= 0 ? remain : remain + Math.Max(0, now - stallStart);
     }
 
     /// <summary>A ripe crop rots when its harvest window runs out; a crop with no window never does.</summary>
-    private float? HoursToRot(ConfigManager config, PlantComponent plant, int now)
+    private static float? HoursToRot(Dictionary<int, Config_Plant> cropRows, PlantComponent plant, int now)
     {
-        if (plant.NeverWithers() || plant.MatureStartTotalSeconds <= 0) return null;
+        var matureStart = plant._MatureStartTotalSeconds_k__BackingField;
 
-        var crop = config.Get_Config_Plant(plant.PlantConfigId);
-        var window = crop == null ? 0 : plant.GetHarvestWindowSeconds(crop);
+        if (plant.NeverWithers() || matureStart <= 0) return null;
+
+        var window = cropRows.TryGetValue(plant._PlantConfigId_k__BackingField, out var crop) ? plant.GetHarvestWindowSeconds(crop) : 0;
 
         if (window <= 0) return null;
 
-        return Math.Max(0, plant.MatureStartTotalSeconds + window - now) / SecondsPerHour;
+        return Math.Max(0, matureStart + window - now) / SecondsPerHour;
     }
 
     private bool IsPowered(PlantComponent plant)
@@ -337,45 +605,23 @@ internal sealed class GameFarm : IFarmGame
     }
 
     /// <summary>
-    /// The crops this pot's light and temperature cannot grow, by the game's own check. It asks once per crop, which is
-    /// costly for a home of empty pots, so each pot's answer is reused for half a minute.
+    /// One crop of an empty pot's suitability check, by the game's own test of the pot's light and temperature. False
+    /// when the test failed, which ends the pot's check with the crops found so far.
     /// </summary>
-    private HashSet<int> Unsuitable(ConfigManager config, FarmCatalog catalog, Furniture furniture)
+    private bool CheckCrop(Furniture furniture, Config_Plant crop, HashSet<int> unsuitable)
     {
-        var key = (furniture.InstanceId, furniture.AgentConfigId);
-        var now = UnityEngine.Time.unscaledTime;
-
-        // One stale pot is checked again per read, so a home of empty pots never asks all of them in the same frame.
-        if (_unsuitable.TryGetValue(key, out var kept) && (now - kept.At < SuitabilitySeconds || _hasRecheckedThisRead)) return kept.Crops;
-
-        if (_unsuitable.ContainsKey(key)) _hasRecheckedThisRead = true;
-
-        var unsuitable = CheckSuitability(config, catalog, furniture);
-
-        _unsuitable[key] = (now, unsuitable);
-
-        return unsuitable;
-    }
-
-    private HashSet<int> CheckSuitability(ConfigManager config, FarmCatalog catalog, Furniture furniture)
-    {
-        var unsuitable = new HashSet<int>();
-
         try
         {
-            foreach (var plantId in catalog.Crops.Keys)
-            {
-                var crop = config.Get_Config_Plant(plantId);
+            if (!PlantComponent.IsEnvironmentSuitable(furniture, crop)) unsuitable.Add(crop.ID);
 
-                if (crop != null && !PlantComponent.IsEnvironmentSuitable(furniture, crop)) unsuitable.Add(plantId);
-            }
+            return true;
         }
         catch (Exception ex)
         {
             ReportOnce("suitability check", ex);
-        }
 
-        return unsuitable;
+            return false;
+        }
     }
 
     private int ReadArea(Furniture furniture, Dictionary<int, string> areaNames)
@@ -384,7 +630,16 @@ internal sealed class GameFarm : IFarmGame
         {
             var area = EnvAreaHelper.GetFurnitureAreaId(furniture);
 
-            if (area > 0 && !areaNames.ContainsKey(area)) areaNames[area] = NonEmpty(EnvAreaHelper.GetAreaDisplayName(area)) ?? "";
+            if (area > 0 && !areaNames.ContainsKey(area))
+            {
+                if (!_areaNames.TryGetValue(area, out var name))
+                {
+                    name = NonEmpty(EnvAreaHelper.GetAreaDisplayName(area)) ?? "";
+                    _areaNames[area] = name;
+                }
+
+                areaNames[area] = name;
+            }
 
             return area;
         }
@@ -405,29 +660,28 @@ internal sealed class GameFarm : IFarmGame
         _ => PotState.Empty,
     };
 
-    private List<Robot> ReadRobots(ConfigManager config, AgentManager agents)
+    private Robot? ReadRobot(ConfigManager config, AgentManager agents, GameCore.HotUpdate.Battle.Logic.DynamicNpc npc, RobotComponent component, bool isChinese, int number)
     {
-        var robots = new List<Robot>();
-
-        foreach (var (npc, component) in PlanterRobots(agents))
+        try
         {
-            try
-            {
-                var tiers = Enumerable.Range(0, RobotTiers).Select(tier => new RobotTier(RobotSowRules.CapacityOfTier(tier), component.GetSowPreset(tier), component.GetSowFertPreset(tier))).ToList();
-                var name = RobotName(config, npc.AgentConfigId) ?? Texts.RobotNumber.Say(GameLanguage.IsChinese(), robots.Count + 1);
+            var tiers = new RobotTier[RobotTiers];
 
-                robots.Add(new Robot(npc.InstanceId, name, Floors.Level(agents.GetAgentFloor(npc.InstanceId)), tiers, component.Battery, component.BatteryMax, component.MasterOn));
-            }
-            catch (Exception ex)
-            {
-                ReportOnce("robot read", ex);
-            }
+            for (var tier = 0; tier < RobotTiers; tier++) tiers[tier] = new RobotTier(RobotSowRules.CapacityOfTier(tier), component.GetSowPreset(tier), component.GetSowFertPreset(tier));
+
+            var id = npc._InstanceId_k__BackingField;
+            var name = RobotName(config, npc._AgentConfigId_k__BackingField) ?? Texts.RobotNumber.Say(isChinese, number);
+
+            return new Robot(id, name, Floors.Level(agents.GetAgentFloor(id)), tiers, component.Battery, component.BatteryMax, component.MasterOn);
         }
+        catch (Exception ex)
+        {
+            ReportOnce("robot read", ex);
 
-        return robots;
+            return null;
+        }
     }
 
-    private IEnumerable<(GameCore.HotUpdate.Battle.Logic.DynamicNpc Npc, RobotComponent Robot)> PlanterRobots(AgentManager agents)
+    private List<(GameCore.HotUpdate.Battle.Logic.DynamicNpc Npc, RobotComponent Robot)> PlanterRobots(AgentManager agents)
     {
         var found = new List<(GameCore.HotUpdate.Battle.Logic.DynamicNpc, RobotComponent)>();
 
@@ -454,127 +708,193 @@ internal sealed class GameFarm : IFarmGame
         return found;
     }
 
-    private static string? RobotName(ConfigManager config, int configId)
+    /// <summary>A robot kind's name, kept per kind until the catalog is built again (a new game or language).</summary>
+    private string? RobotName(ConfigManager config, int configId)
     {
-        var table = config._Config_Player_Dict;
+        if (_robotNames.TryGetValue(configId, out var known)) return known;
 
-        if (table == null || !table.ContainsKey(configId)) return null;
+        var row = config._Config_Player_Dict is { } table && table.TryGetValue(configId, out var found) ? found : null;
+        var name = row == null ? null : Translate(config, row.Name) ?? NonEmpty(row.Name_Local);
 
-        var row = table[configId];
+        _robotNames[configId] = name;
 
-        return row == null ? null : Translate(config, row.Name) ?? NonEmpty(row.Name_Local);
+        return name;
     }
 
     /// <summary>
     /// Seeds and fertilizer the player can reach: their bag and every home storage the game counts for building costs,
     /// skipping storage the game keeps out of that pool.
     /// </summary>
-    private static Dictionary<int, int> ReadOwned(ItemManager? items, FarmCatalog catalog, long roleId)
+    private static void AddOwned(ItemData? item, FarmCatalog catalog, long roleId, Dictionary<int, int> owned)
     {
-        var owned = new Dictionary<int, int>();
-        var available = items?.GetAllAvailableItems(roleId);
+        if (item == null) return;
 
-        for (var i = 0; available != null && i < available.Count; i++)
-        {
-            var item = available[i];
+        var count = item._ItemCount_k__BackingField;
+        var itemId = item._ItemConfigId_k__BackingField;
 
-            if (item == null || item.ItemCount <= 0) continue;
-            if (!catalog.Seeds.ContainsKey(item.ItemConfigId) && !catalog.Fertilizers.ContainsKey(item.ItemConfigId)) continue;
-            if (item.OwnerId != roleId && ItemManager.IsExcludedFromCostPool(item.OwnerId)) continue;
+        if (count <= 0) return;
+        if (!catalog.Seeds.ContainsKey(itemId) && !catalog.Fertilizers.ContainsKey(itemId)) return;
 
-            owned[item.ItemConfigId] = (owned.TryGetValue(item.ItemConfigId, out var count) ? count : 0) + item.ItemCount;
-        }
+        var ownerId = item._OwnerId_k__BackingField;
 
-        return owned;
+        if (ownerId != roleId && ItemManager.IsExcludedFromCostPool(ownerId)) return;
+
+        owned[itemId] = (owned.TryGetValue(itemId, out var held) ? held : 0) + count;
     }
 
-    /// <summary>The tables only change with the language, so the catalog is built once per game and language.</summary>
-    private FarmCatalog Catalog(ConfigManager config, bool isChinese)
+    /// <summary>
+    /// The tables only change with the language, so the catalog is built once per game and language. Building it reads
+    /// every pot kind, crop, seed and fertilizer, so it runs a slice at a time; null until it is all read. A read for a
+    /// press passes NeverSpent, which builds whatever is left at once.
+    /// </summary>
+    private FarmCatalog? CatalogFor(ConfigManager config, bool isChinese, Func<bool> isSliceSpent)
     {
         var key = (config.Pointer, isChinese);
 
         if (_catalog != null && _catalogKey == key) return _catalog;
 
-        _catalog = new FarmCatalog(ReadKinds(config), ReadCrops(config), ReadSeeds(config), ReadFertilizers(config));
-        _unsuitable.Clear();
+        if (_build == null || _buildKey != key)
+        {
+            _build = new SlicedJob(CatalogSteps(config));
+            _buildKey = key;
+            _built = null;
+        }
+
+        var build = _build;
+
+        try
+        {
+            if (!build.Advance(isSliceSpent)) return null;
+        }
+        catch (Exception)
+        {
+            _build = null;
+
+            throw;
+        }
+
+        _build = null;
+        _catalog = _built ?? throw new InvalidOperationException("the catalog build ended without a catalog");
         _catalogKey = key;
+        _built = null;
+        _cropRows = _builtCropRows;
+        _cropRowsById = new Dictionary<int, Config_Plant>(_cropRows.Count);
+
+        foreach (var row in _cropRows) _cropRowsById[row.ID] = row;
+
+        _builtCropRows = new List<Config_Plant>();
+        _unsuitable.Clear();
+        _areaNames.Clear();
+        _robotNames.Clear();
         _log($"read {_catalog.Kinds.Count} pot kinds, {_catalog.Crops.Count} crops, {_catalog.Seeds.Count} seeds, {_catalog.Fertilizers.Count} fertilizers");
 
         return _catalog;
     }
 
-    private Dictionary<int, PotKind> ReadKinds(ConfigManager config)
+    /// <summary>
+    /// The catalog's reads: the tables in batches, then one pot kind, crop, seed or fertilizer per step. The tables are
+    /// read straight, not through ConfigManager.Get_Config_*, which write an error to the game's log for every id they
+    /// do not have. The config tables never change while a game runs, so a table is walked across frames. Waits first
+    /// for the icon scan, since every name comes with its icon; a read for a press waits for it there and then.
+    /// </summary>
+    private IEnumerable<bool> CatalogSteps(ConfigManager config)
     {
-        var kinds = new Dictionary<int, PotKind>();
-        var rows = config._Config_Furniture_Dict;
-
-        if (rows == null) return kinds;
-
-        foreach (var row in rows.Values)
+        while (!AreIconsIn())
         {
-            if (row == null || row.PlantFurnitureID <= 0) continue;
-
-            var plant = config.Get_Config_FurniturePlant(row.PlantFurnitureID);
-
-            if (plant == null) continue;
-
-            var name = Translate(config, row.Name) ?? $"Pot {row.ID}";
-
-            kinds[row.ID] = new PotKind(row.ID, name, Icons().Resolve(NonEmpty(row.ICON)), plant.Capacity, plant.AddLight, plant.AddHeat, plant.NeedPower, plant.GrowthFaster);
+            if (_isSyncRead) WaitForIcons();
+            else yield return false;
         }
 
-        return kinds;
-    }
+        var potRows = new List<Config_Furniture>();
+        var seen = 0;
 
-    private Dictionary<int, Crop> ReadCrops(ConfigManager config)
-    {
-        var crops = new Dictionary<int, Crop>();
-        var rows = config._Config_Plant_Dict;
-
-        if (rows == null) return crops;
-
-        foreach (var row in rows.Values)
+        if (config._Config_Furniture_Dict is { } furnitureRows)
         {
-            if (row == null) continue;
+            foreach (var row in furnitureRows.Values)
+            {
+                if (row != null && row.PlantFurnitureID > 0) potRows.Add(row);
+                if (++seen % RowsPerStep == 0) yield return true;
+            }
+        }
 
+        var kinds = new Dictionary<int, PotKind>();
+        var potPlants = config._Config_FurniturePlant_Dict;
+
+        foreach (var row in potRows)
+        {
+            var plant = potPlants != null && potPlants.TryGetValue(row.PlantFurnitureID, out var found) ? found : null;
+
+            if (plant != null)
+            {
+                var name = Translate(config, row.Name) ?? $"Pot {row.ID}";
+
+                kinds[row.ID] = new PotKind(row.ID, name, Icons().Resolve(NonEmpty(row.ICON)), plant.Capacity, plant.AddLight, plant.AddHeat, plant.NeedPower, plant.GrowthFaster);
+            }
+
+            yield return true;
+        }
+
+        var cropRows = new List<Config_Plant>();
+
+        if (config._Config_Plant_Dict is { } plantRows)
+        {
+            foreach (var row in plantRows.Values)
+            {
+                if (row != null) cropRows.Add(row);
+                if (++seen % RowsPerStep == 0) yield return true;
+            }
+        }
+
+        var crops = new Dictionary<int, Crop>();
+
+        foreach (var row in cropRows)
+        {
             var name = Translate(config, row.Name) ?? NonEmpty(row.Name_Local) ?? $"Crop {row.ID}";
-            var harvest = row.Gain != null && row.Gain.Count > 0 ? config.Get_Config_Item(row.Gain[0]) : null;
+            var harvest = row.Gain != null && row.Gain.Count > 0 ? ItemRow(config, row.Gain[0]) : null;
 
             crops[row.ID] = new Crop(row.ID, name, ItemIcon(harvest), row.Size, row.GrowthTime / SecondsPerHour, row.HarvestTime / SecondsPerHour, GreenhouseResearchPlant.IsResearchPlant(row.ID));
+
+            yield return true;
         }
 
-        return crops;
-    }
+        var seedRows = new List<Config_Item>();
+        var fertRows = new List<Config_Item>();
 
-    private Dictionary<int, SeedItem> ReadSeeds(ConfigManager config)
-    {
+        if (config._Config_Item_Dict is { } itemRows)
+        {
+            foreach (var row in itemRows.Values)
+            {
+                if (row != null && row.Category == SeedCategory) seedRows.Add(row);
+                else if (row != null && row.Category == FertilizerCategory) fertRows.Add(row);
+
+                if (++seen % RowsPerStep == 0) yield return true;
+            }
+        }
+
         var seeds = new Dictionary<int, SeedItem>();
 
-        foreach (var item in Items(config, SeedCategory))
+        foreach (var item in seedRows)
         {
             if (item.Plant > 0) seeds[item.ID] = new SeedItem(item.ID, ItemName(config, item), ItemIcon(item), item.Plant);
+
+            yield return true;
         }
 
-        return seeds;
-    }
+        var fertilizers = new Dictionary<int, Fertilizer>();
 
-    private Dictionary<int, Fertilizer> ReadFertilizers(ConfigManager config) =>
-        Items(config, FertilizerCategory).ToDictionary(item => item.ID, item => new Fertilizer(item.ID, ItemName(config, item), ItemIcon(item), item.Plant_Fast));
-
-    private static List<Config_Item> Items(ConfigManager config, int category)
-    {
-        var items = new List<Config_Item>();
-        var rows = config._Config_Item_Dict;
-
-        if (rows == null) return items;
-
-        foreach (var row in rows.Values)
+        foreach (var item in fertRows)
         {
-            if (row != null && row.Category == category) items.Add(row);
+            fertilizers.Add(item.ID, new Fertilizer(item.ID, ItemName(config, item), ItemIcon(item), item.Plant_Fast));
+
+            yield return true;
         }
 
-        return items;
+        _builtCropRows = cropRows;
+        _built = new FarmCatalog(kinds, crops, seeds, fertilizers);
     }
+
+    private static Config_Item? ItemRow(ConfigManager config, int id) =>
+        config._Config_Item_Dict is { } items && items.TryGetValue(id, out var item) ? item : null;
 
     private bool IsHome(AgentManager agents)
     {
@@ -596,14 +916,14 @@ internal sealed class GameFarm : IFarmGame
 
         for (var i = 0; furnitures != null && i < furnitures.Count; i++)
         {
-            if (furnitures[i]?.InstanceId == potId) return furnitures[i];
+            if (furnitures[i]?._InstanceId_k__BackingField == potId) return furnitures[i];
         }
 
         return null;
     }
 
-    private static string Queued((BattleLogicWorld World, ConfigManager Config, AgentManager Agents, LeadingRole Role) game, int actionId, long potId) =>
-        game.World._ActionManager?.HasActionInQueue(game.Role.InstanceId, actionId, potId) == true ? " (queued)" : " (not seen in the queue yet)";
+    private static string Queued(Game game, int actionId, long potId) =>
+        game.World._ActionManager?.HasActionInQueue(game.Role._InstanceId_k__BackingField, actionId, potId) == true ? " (queued)" : " (not seen in the queue yet)";
 
     private static int ChoreAction(TendAction action) => action switch
     {
@@ -635,7 +955,59 @@ internal sealed class GameFarm : IFarmGame
 
     private string? ItemIcon(Config_Item? item) => item == null ? null : Icons().Resolve(NonEmpty(item.WebIcon) ?? NonEmpty(item.Icon));
 
-    private IconIndex Icons() => _icons ??= WebIcons.Load(_log);
+    private IconIndex Icons() => _icons ?? IconIndex.Empty;
+
+    /// <summary>
+    /// Whether the web icons are indexed. The first call starts the scan on a worker thread (the game ships well over a
+    /// thousand icon files), so it is done long before a save is loaded; what it found is logged here, on the main thread.
+    /// </summary>
+    private bool AreIconsIn()
+    {
+        if (_icons != null) return true;
+
+        _iconScan ??= StartIconScan();
+
+        if (!_iconScan.IsCompleted) return false;
+
+        var (icons, note) = _iconScan.Status == TaskStatus.RanToCompletion
+            ? _iconScan.Result
+            : (IconIndex.Empty, NoIconsNote + _iconScan.Exception?.GetBaseException().Message);
+
+        _icons = icons;
+        _iconScan = null;
+        _log(note);
+
+        return true;
+    }
+
+    /// <summary>A read for a press cannot wait for a later frame, so it waits for the scan here. Only the first seconds of a game can get this far.</summary>
+    private void WaitForIcons()
+    {
+        _iconScan ??= StartIconScan();
+
+        try
+        {
+            _iconScan.Wait();
+        }
+        catch (AggregateException)
+        {
+            // AreIconsIn reports it.
+        }
+
+        AreIconsIn();
+    }
+
+    private static Task<(IconIndex Icons, string Note)> StartIconScan()
+    {
+        try
+        {
+            return WebIcons.StartScan();
+        }
+        catch (Exception ex)
+        {
+            return Task.FromResult((IconIndex.Empty, NoIconsNote + ex.Message));
+        }
+    }
 
     private static string? Translate(ConfigManager config, string? key)
     {
@@ -651,5 +1023,48 @@ internal sealed class GameFarm : IFarmGame
     private void ReportOnce(string operation, Exception ex)
     {
         if (_reportedFailures.Add(operation)) _log($"{operation} failed (each kind reported once): {ex}");
+    }
+
+    /// <summary>The loaded game's world, tables, agents and player.</summary>
+    private readonly struct Game
+    {
+        public Game(BattleLogicWorld world, ConfigManager config, AgentManager agents, LeadingRole role)
+        {
+            World = world;
+            Config = config;
+            Agents = agents;
+            Role = role;
+        }
+
+        public BattleLogicWorld World { get; }
+
+        public ConfigManager Config { get; }
+
+        public AgentManager Agents { get; }
+
+        public LeadingRole Role { get; }
+    }
+
+    /// <summary>One read of the farm in progress: its world, its clock, its one suitability recheck, and what it found.</summary>
+    private sealed class ReadRun
+    {
+        public ReadRun(IntPtr world, bool isSync, float now)
+        {
+            World = world;
+            IsSync = isSync;
+            Now = now;
+        }
+
+        public IntPtr World { get; }
+
+        public bool IsSync { get; }
+
+        public float Now { get; }
+
+        public SlicedJob Job { get; set; } = null!;
+
+        public bool HasRechecked { get; set; }
+
+        public FarmRead? Result { get; set; }
     }
 }

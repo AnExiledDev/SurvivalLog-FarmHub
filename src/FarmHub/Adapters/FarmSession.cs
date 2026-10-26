@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using FarmHub.Core;
 using UnityEngine;
 
@@ -19,7 +19,10 @@ internal sealed class FarmSession
     private const float SowRetrySeconds = 0.5f;
     private const int SowTries = 6;
 
-    private readonly IFarmGame _game;
+    private static readonly long StartedAt = Stopwatch.GetTimestamp();
+
+    private readonly GameFarm _game;
+    private readonly ReadDone _readDone;
     private readonly WebPage _page;
     private readonly WebKeyboard _keyboard = new();
     private readonly PresetFileOnDisk _file;
@@ -29,13 +32,17 @@ internal sealed class FarmSession
     private readonly Action<string> _log;
     private readonly Dictionary<long, float> _retryAt = new();
     private readonly Dictionary<long, int> _sowTries = new();
+    private readonly List<long> _sowing = new();
+    private readonly ViewCache _views = new();
 
     private PresetBook? _book;
     private KeyCode _panelKey;
     private bool _isPanelKeyShifted;
+    private string _keyName = "";
     private int _rotWarnHours = 12;
     private bool _isKeepingRobotsStocked;
     private bool _isTendFromPresets;
+    private ViewSettings? _settings;
 
     private bool _isOpen;
     private string _shownView = "";
@@ -46,11 +53,14 @@ internal sealed class FarmSession
     private float _nextAutoAt;
     private float _nextSowAt;
     private string _sentHud = "";
+    private Phase _phase;
+    private FarmRead? _lastRead;
     private FarmWorld? _lastWorld;
 
-    public FarmSession(IFarmGame game, WebPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
+    public FarmSession(GameFarm game, WebPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
     {
         _game = game;
+        _readDone = new ReadDone(game);
         _page = page;
         _file = file;
         _saveRotWarn = saveRotWarn;
@@ -60,6 +70,19 @@ internal sealed class FarmSession
         TendHooks.CanSow = CanSow;
     }
 
+    /// <summary>
+    /// A refresh is spread over frames, one part per frame: the farm read (itself a slice per frame), then the HUD and
+    /// badge, then the open window, then the auto pass when it is due. Idle frames only check the clock.
+    /// </summary>
+    private enum Phase
+    {
+        Idle,
+        Reading,
+        Hud,
+        Window,
+        Auto,
+    }
+
     private static bool IsChinese => GameLanguage.IsChinese();
 
     /// <summary>Called on the main thread at start and after each settings change; the page hears them at the next refresh.</summary>
@@ -67,11 +90,13 @@ internal sealed class FarmSession
     {
         _panelKey = panelKey;
         _isPanelKeyShifted = isPanelKeyShifted;
+        _keyName = panelKey == KeyCode.None ? "" : (isPanelKeyShifted ? "Shift+" : "") + panelKey;
         InputGate.UsePanelKey(panelKey, isPanelKeyShifted);
         _rotWarnHours = rotWarnHours;
         _isKeepingRobotsStocked = isKeepingRobotsStocked;
         _isTendFromPresets = isTendFromPresets;
         TendHooks.IsOn = isTendFromPresets;
+        _settings = null;
         _sentHud = "";
         _sentLive = null;
         _sentBadge = null;
@@ -80,31 +105,77 @@ internal sealed class FarmSession
 
     public void Update()
     {
-        var now = Time.unscaledTime;
+        var now = Now();
 
-        _page.KeepInstalled(now);
+        // The script check is its own small call to the web view, so it waits for a frame with no refresh work.
+        if (_phase == Phase.Idle) _page.KeepInstalled(now);
 
         while (PageMessages.TryTake(out var command)) HandleSafely(command);
 
         TakeTendHooks(now);
 
-        if (!_keyboard.IsClaimed && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
+        // One question to Unity on the frames no key went down, which is nearly all of them.
+        if (!_keyboard.IsClaimed && Input.anyKeyDown)
         {
-            Toggle();
+            if (_panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
+            {
+                Toggle();
 
-            return;
+                return;
+            }
+
+            if (_isOpen && Input.GetKeyDown(KeyCode.Escape))
+            {
+                Close();
+
+                return;
+            }
         }
 
-        if (_isOpen && !_keyboard.IsClaimed && Input.GetKeyDown(KeyCode.Escape))
+        Step(now);
+    }
+
+    /// <summary>Seconds since the mod loaded, from .NET's own clock: asking Unity for the time every frame is a call into the game.</summary>
+    private static float Now() => (float)((Stopwatch.GetTimestamp() - StartedAt) / (double)Stopwatch.Frequency);
+
+    /// <summary>One part of the refresh per frame, so the read, the views and the auto pass never share a frame.</summary>
+    private void Step(float now)
+    {
+        switch (_phase)
         {
-            Close();
+            case Phase.Idle:
+                if (now < _nextRefreshAt) return;
 
-            return;
+                _nextRefreshAt = now + (_isOpen ? OpenRefreshSeconds : ClosedRefreshSeconds);
+                _phase = Phase.Reading;
+                return;
+            case Phase.Reading:
+                var read = _game.AdvanceRead();
+
+                if (read == null) return;
+
+                _lastRead = read;
+                _lastWorld = (read as FarmRead.Ready)?.World;
+                SendLive(_lastWorld != null);
+                _phase = Phase.Hud;
+                return;
+            case Phase.Hud:
+                SendHud(_lastWorld);
+                _phase = Phase.Window;
+                return;
+            case Phase.Window:
+                _phase = Phase.Auto;
+
+                if (_isOpen && _lastRead != null) Show(_lastRead, isOpening: false);
+
+                return;
+            case Phase.Auto:
+                _phase = Phase.Idle;
+
+                if (now >= _nextAutoAt) RunAuto(now);
+
+                return;
         }
-
-        // The farm read and the auto pass each read the whole farm, so they never share a frame.
-        if (now >= _nextRefreshAt) Refresh(now);
-        else if (now >= _nextAutoAt) RunAuto(now);
     }
 
     /// <summary>One command that throws must not cost the rest of the frame its commands or the key checks.</summary>
@@ -177,11 +248,13 @@ internal sealed class FarmSession
                 break;
             case PageCommand.RotWarn rotWarn:
                 _rotWarnHours = rotWarn.Hours;
+                _settings = null;
                 _saveRotWarn(rotWarn.Hours);
                 Say(Texts.RotWarnSet.Say(IsChinese, rotWarn.Hours));
                 break;
             case PageCommand.Robots robots:
                 _isKeepingRobotsStocked = robots.IsKeepingStocked;
+                _settings = null;
                 _saveRobots(robots.IsKeepingStocked);
                 Say((robots.IsKeepingStocked ? Texts.RobotsOn : Texts.RobotsOff).Pick(IsChinese));
                 break;
@@ -239,40 +312,36 @@ internal sealed class FarmSession
         Redraw();
     }
 
-    /// <summary>
-    /// Reads the farm once: the HUD button shows while there is a home to manage, its badge counts pots that need the
-    /// player, and an open window is redrawn when its view changed. A read that throws is logged by the game adapter and
-    /// read as not ready, so the window stays up with the reason instead of holding the game's input with nothing in it.
-    /// </summary>
-    private void Refresh(float now)
-    {
-        _nextRefreshAt = now + (_isOpen ? OpenRefreshSeconds : ClosedRefreshSeconds);
-
-        var read = _game.Read();
-        var world = (read as FarmRead.Ready)?.World;
-
-        _lastWorld = world;
-        SendLive(world != null);
-        SendBadge(world == null ? 0 : FarmView.NeedsYou(world, Book()));
-        SendHud(world);
-
-        if (_isOpen) Show(read, isOpening: false);
-    }
-
     private void SendLive(bool isLive)
     {
         if (isLive == _sentLive) return;
-        if (_page.Live(isLive, KeyName())) _sentLive = isLive;
+        if (_page.Live(isLive, _keyName)) _sentLive = isLive;
 
         _log($"HUD button {(isLive ? "shown" : "hidden")}");
     }
 
-    /// <summary>The plant panel's additions need the catalog to name seeds, so it goes too, once per game and language.</summary>
+    /// <summary>
+    /// The HUD button's badge counts pots that need the player, and the plant panel's additions name seeds, so the
+    /// catalog goes first, once per game and language. A read that found nothing new gets the very views it had, and
+    /// nothing is sent.
+    /// </summary>
     private void SendHud(FarmWorld? world)
     {
-        if (world != null) SendCatalog(world.Catalog);
+        string hud;
+        int badge;
 
-        var hud = world == null ? HudView.NotReady() : HudView.Ready(world, Book(), _rotWarnHours, _isTendFromPresets);
+        if (world == null)
+        {
+            hud = HudView.NotReady();
+            badge = 0;
+        }
+        else
+        {
+            SendCatalog(world.Catalog);
+            (hud, badge) = _views.Hud(world, Book(), _rotWarnHours, _isTendFromPresets);
+        }
+
+        SendBadge(badge);
 
         if (hud == _sentHud) return;
         if (_page.Hud(hud)) _sentHud = hud;
@@ -281,10 +350,13 @@ internal sealed class FarmSession
     /// <summary>A replant walk's pot, sown from its preset when the walk is done with it, and the extras after the game's Tend Garden.</summary>
     private void TakeTendHooks(float now)
     {
-        foreach (var potId in TendHooks.TakeSows())
+        if (TendHooks.HasSows)
         {
-            _sowTries[potId] = 0;
-            _nextSowAt = now;
+            foreach (var potId in TendHooks.TakeSows())
+            {
+                _sowTries[potId] = 0;
+                _nextSowAt = now;
+            }
         }
 
         if (TendHooks.TakePatrol())
@@ -303,8 +375,10 @@ internal sealed class FarmSession
     private void SowQueued(float now)
     {
         _nextSowAt = now + SowRetrySeconds;
+        _sowing.Clear();
+        _sowing.AddRange(_sowTries.Keys);
 
-        foreach (var potId in _sowTries.Keys.ToList())
+        foreach (var potId in _sowing)
         {
             var outcome = FarmRun.Plant(_game, Book(), new[] { potId });
             var tries = _sowTries[potId] + 1;
@@ -325,7 +399,15 @@ internal sealed class FarmSession
     private bool CanSow(long potId)
     {
         var world = _lastWorld;
-        var pot = world?.Pots.FirstOrDefault(found => found.Id == potId);
+        Pot? pot = null;
+
+        for (var i = 0; world != null && i < world.Pots.Count; i++)
+        {
+            if (world.Pots[i].Id != potId) continue;
+
+            pot = world.Pots[i];
+            break;
+        }
 
         if (world == null || pot == null || !world.Catalog.Kinds.TryGetValue(pot.KindId, out var kind)) return false;
 
@@ -346,10 +428,13 @@ internal sealed class FarmSession
         else Open();
     }
 
-    /// <summary>With no game loaded there is nothing to show and the window stays shut; anything else opens it.</summary>
+    /// <summary>
+    /// With no game loaded there is nothing to show and the window stays shut; anything else opens it. The window opens
+    /// on the last refresh's read, and a fresh read starts at once and redraws it a few frames later.
+    /// </summary>
     private void Open()
     {
-        var read = _game.Read();
+        var read = _lastRead is FarmRead.Ready or FarmRead.NotReady ? _lastRead : _game.Read();
 
         if (read is FarmRead.NoGame)
         {
@@ -362,6 +447,7 @@ internal sealed class FarmSession
         InputGate.PanelOpened();
         Show(read, isOpening: true);
         _log("window opened");
+        RefreshNow();
     }
 
     private void Close()
@@ -374,23 +460,32 @@ internal sealed class FarmSession
         _page.Close();
     }
 
+    /// <summary>After a press or an edit the open window is read afresh at once, so a queued walk or new count shows a few frames later.</summary>
     private void Redraw()
     {
-        if (_isOpen) Show(_game.Read(), isOpening: false);
+        if (_isOpen) RefreshNow();
     }
+
+    private void RefreshNow()
+    {
+        _game.RestartRead();
+        _phase = Phase.Reading;
+        _nextRefreshAt = Now() + OpenRefreshSeconds;
+    }
+
+    private ViewSettings Settings() => _settings ??= new ViewSettings(_keyName, _rotWarnHours, _isKeepingRobotsStocked);
 
     /// <summary>The catalog goes first, once per game and language, since the view names items only by id.</summary>
     private void Show(FarmRead read, bool isOpening)
     {
-        var settings = new ViewSettings(KeyName(), _rotWarnHours, _isKeepingRobotsStocked);
+        var settings = Settings();
         string view;
 
         switch (read)
         {
             case FarmRead.Ready ready:
-                _lastWorld = ready.World;
                 SendCatalog(ready.World.Catalog);
-                view = FarmView.Ready(ready.World, Book(), settings);
+                view = _views.Window(ready.World, Book(), settings);
                 break;
             case FarmRead.NotReady notReady:
                 view = FarmView.NotReady(Texts.NotReady.Say(IsChinese, notReady.Reason), settings);
@@ -422,15 +517,34 @@ internal sealed class FarmSession
 
     /// <summary>
     /// Replants the empty pots whose preset asks for it, and keeps robots stocked when the player turned that on, every
-    /// few seconds. Only a pass that did something says so, as a toast, so a quiet farm stays quiet.
+    /// few seconds. It runs on the read just finished, and only when that read shows something for it to do. Only a pass
+    /// that did something says so, as a toast, so a quiet farm stays quiet.
     /// </summary>
     private void RunAuto(float now)
     {
         _nextAutoAt = now + AutoSeconds;
 
-        if (_lastWorld == null || (!_isKeepingRobotsStocked && !Book().Presets.Any(preset => preset.AutoReplant))) return;
+        var world = _lastWorld;
 
-        var outcome = FarmRun.Auto(_game, Book(), now, _retryAt, _isKeepingRobotsStocked);
+        if (world == null) return;
+
+        var book = Book();
+
+        if (!_isKeepingRobotsStocked && !FarmRun.HasAutoReplant(book)) return;
+        if (!FarmRun.HasAutoWork(world, book, now, _retryAt, _isKeepingRobotsStocked)) return;
+
+        FarmOutcome outcome;
+
+        _readDone.Last = _lastRead;
+
+        try
+        {
+            outcome = FarmRun.Auto(_readDone, book, now, _retryAt, _isKeepingRobotsStocked);
+        }
+        finally
+        {
+            _readDone.Last = null;
+        }
 
         if (!FarmMessages.IsWorthShowing(outcome)) return;
 
@@ -459,5 +573,32 @@ internal sealed class FarmSession
         Redraw();
     }
 
-    private string KeyName() => _panelKey == KeyCode.None ? "" : (_isPanelKeyShifted ? "Shift+" : "") + _panelKey;
+    /// <summary>
+    /// The game, for presses run on a read already made: Read answers with it while it is set, and every press goes to
+    /// the game. That read is a few frames old, so a pot is checked once more, alone, before it is planted.
+    /// </summary>
+    private sealed class ReadDone : IFarmGame
+    {
+        private readonly GameFarm _game;
+
+        public ReadDone(GameFarm game)
+        {
+            _game = game;
+        }
+
+        public FarmRead? Last { get; set; }
+
+        public FarmRead Read() => Last ?? _game.Read();
+
+        public bool Plant(long potId, int plantId, int seedCount, int seedItemId, int fertId) =>
+            (Last == null || _game.IsStillPlantable(potId)) && _game.Plant(potId, plantId, seedCount, seedItemId, fertId);
+
+        public bool Fertilize(long potId, int fertId) => _game.Fertilize(potId, fertId);
+
+        public bool Tend(long potId, TendAction action) => _game.Tend(potId, action);
+
+        public bool TendAll() => _game.TendAll();
+
+        public bool SetRobotTier(long robotId, int tier, int seedId, int fertId) => _game.SetRobotTier(robotId, tier, seedId, fertId);
+    }
 }

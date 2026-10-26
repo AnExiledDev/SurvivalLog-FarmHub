@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.3
+
+- Less stutter: Farm Hub now checks your pots a few at a time over several frames instead of all in one frame.
+- Less stutter with the game's plant list open: Farm Hub now redraws only the pots that changed, and does nothing while your farm stays the same.
+- The Farm Hub window redraws only the pots that changed when it refreshes, so it stays smooth with many pots.
+- The first refresh after loading a save is quicker.
+- Made for Survival Log 1.1.19611.
+
 ## 0.4.2
 
 - Fixed: the search boxes and text boxes in Farm Hub now accept Chinese and other typing that needs an input method.

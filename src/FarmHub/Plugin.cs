@@ -1,8 +1,10 @@
 using System.IO;
+using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using FarmHub.Adapters;
+using FarmHub.Core;
 using HarmonyLib;
 using UnityEngine;
 
@@ -13,7 +15,7 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.4.2";
+    private const string Version = "0.4.3";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()
@@ -65,5 +67,8 @@ public sealed class Plugin : BasePlugin
         FarmTicker.Session = session;
         FarmTicker.Log = log.Write;
         AddComponent<FarmTicker>();
+
+        // The views and presses are compiled on a worker now, so the first refresh in a save costs only the read.
+        Task.Run(() => Warmup.Run()).ContinueWith(task => log.Write("warm-up failed: " + task.Exception?.GetBaseException().Message), TaskContinuationOptions.OnlyOnFaulted);
     }
 }

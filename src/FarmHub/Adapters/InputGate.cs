@@ -62,9 +62,20 @@ internal static class InputGate
         }
     }
 
-    private static bool SkipWhileBlocked() => !(_isPanelOpen || Time.frameCount <= _blockedThroughFrame);
+    /// <summary>Runs before the game's hotkeys every frame, so the frame count is asked only in the frame or two after a close.</summary>
+    private static bool SkipWhileBlocked()
+    {
+        if (_isPanelOpen) return false;
+        if (_blockedThroughFrame < 0) return true;
+        if (Time.frameCount <= _blockedThroughFrame) return false;
 
-    private static bool SkipTendGardenOnPanelKey() => !(_isPanelKeyShifted && _panelKey != KeyCode.None && IsShiftHeld() && Input.GetKeyDown(_panelKey));
+        _blockedThroughFrame = -1;
+
+        return true;
+    }
+
+    /// <summary>The key press is the rare part, so it is asked first and Shift only when it is down.</summary>
+    private static bool SkipTendGardenOnPanelKey() => !(_isPanelKeyShifted && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && IsShiftHeld());
 
     private static void RouteClicksToPanel(ref bool __result)
     {

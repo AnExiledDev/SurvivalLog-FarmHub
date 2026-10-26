@@ -104,6 +104,13 @@ public static class PresetJson
     public static void WritePreset(Utf8JsonWriter json, FarmPreset preset)
     {
         json.WriteStartObject();
+        WritePresetFields(json, preset);
+        json.WriteEndObject();
+    }
+
+    /// <summary>A preset's fields, written into an object the caller opened, so the window can add its own after them.</summary>
+    public static void WritePresetFields(Utf8JsonWriter json, FarmPreset preset)
+    {
         json.WriteString("id", preset.Id);
         json.WriteString("name", preset.Name);
         json.WriteStartObject("seeds");
@@ -140,7 +147,6 @@ public static class PresetJson
         json.WriteBoolean("skipUnsuitable", preset.SkipUnsuitable);
         json.WriteBoolean("fertilize", preset.Fertilize);
         json.WriteBoolean("autoReplant", preset.AutoReplant);
-        json.WriteEndObject();
     }
 
     private static FarmPreset ReadPreset(JsonObject node)

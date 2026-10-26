@@ -58,6 +58,25 @@ var FakeElement = class {
 
   get firstChild() { return this.children.length ? this.children[0] : null; }
 
+  // In the page while some ancestor is a document's head or body.
+  get isConnected() {
+    for (var element = this; element; element = element.parentElement) {
+      if (element.isRoot) return true;
+    }
+
+    return false;
+  }
+
+  get nextElementSibling() {
+    var siblings = this.parentElement ? this.parentElement.children : [];
+
+    for (var i = siblings.indexOf(this) + 1; i > 0 && i < siblings.length; i++) {
+      if (siblings[i].tagName !== '#text') return siblings[i];
+    }
+
+    return null;
+  }
+
   get className() { return this.classes.join(' '); }
 
   set className(value) { this.classes = String(value).split(' ').filter(function (name) { return name !== ''; }); }
@@ -153,6 +172,8 @@ var FakeElement = class {
   }
 
   querySelectorAll(selector) {
+    searches++;
+
     return descendantsOf([this]).filter(function (element) { return element.matches(selector); });
   }
 
@@ -160,6 +181,10 @@ var FakeElement = class {
     return this.querySelectorAll(selector)[0] || null;
   }
 };
+
+// Every querySelector, querySelectorAll and getElementById the script runs, so a test can see that a poll where nothing
+// changed searched nothing.
+var searches = 0;
 
 // Compound selectors of a tag, classes, ids and attributes ("iframe", ".fh-hud-btn", "[data-act]"); the script uses
 // nothing else.
@@ -201,6 +226,8 @@ var FakeDocument = class {
   constructor() {
     this.head = new FakeElement('head');
     this.body = new FakeElement('body');
+    this.head.isRoot = true;
+    this.body.isRoot = true;
   }
 
   createElement(tagName) { return new FakeElement(tagName); }
@@ -218,10 +245,14 @@ var FakeDocument = class {
   createDocumentFragment() { return new FakeElement('#fragment'); }
 
   getElementById(id) {
+    searches++;
+
     return descendantsOf([this.head, this.body]).filter(function (element) { return element.id === id; })[0] || null;
   }
 
   querySelectorAll(selector) {
+    searches++;
+
     return descendantsOf([this.head, this.body]).filter(function (element) { return element.matches(selector); });
   }
 
@@ -311,9 +342,10 @@ function click(target) {
   }
 }
 
-// The game's plant panel in the HUD (CoreUI1.html 2296-2400), opened: the toggle row with Tend Garden and its tip, the
-// Replant box unless hasReplant is false, and one row per plant in the order its Vue state lists them. rows are
-// [showInstanceId, status class] pairs; the Vue state sits where the page script reads it.
+// The game's plant panel in the HUD (CoreUI1.html 2296-2400), opened: the toggle row with Tend Garden and its tip and
+// the Replant box, both only while Tend Garden is unlocked (hasReplant not false), and one row per plant in the order
+// its Vue state lists them. rows are [showInstanceId, status class] pairs; the Vue state sits where the page script
+// reads it, with the switches the game's v-if lines read.
 function openPlantPanel(rows, isReplantOn, hasReplant) {
   var doc = hudPage();
   var app = doc.getElementById('app') || doc.body.appendChild(new FakeElement('div'));
@@ -326,7 +358,13 @@ function openPlantPanel(rows, isReplantOn, hasReplant) {
   var list = new FakeElement('div');
 
   app.id = 'app';
-  app._vnode = { component: { setupState: { state: { maturePlants: rows.map(function (r) { return { showInstanceId: r[0] }; }), matureReplantOn: !!isReplantOn } } } };
+  app._vnode = { component: { setupState: { state: {
+    maturePlants: rows.map(function (r) { return { showInstanceId: r[0] }; }),
+    matureReplantOn: !!isReplantOn,
+    maturePlantsActive: true,
+    maturePlantsExpanded: true,
+    maturePatrolUnlocked: hasReplant !== false
+  } } } };
   panel.className = 'mature-panel';
   toggle.className = 'mature-toggle-row is-expanded';
   patrol.id = 'maturePatrolBtn';
@@ -336,10 +374,11 @@ function openPlantPanel(rows, isReplantOn, hasReplant) {
   title.textContent = 'Tend Garden';
   tip.appendChild(title);
   patrol.appendChild(tip);
-  toggle.appendChild(patrol);
 
   if (hasReplant !== false) {
     var replant = new FakeElement('label');
+
+    toggle.appendChild(patrol);
 
     replant.id = 'matureReplantChk';
     replant.className = 'mature-replant-chk';
@@ -378,4 +417,24 @@ function rowSub(i) {
   var sub = gameRowsNow()[i].querySelectorAll('.fh-sub')[0];
 
   return sub ? sub.textContent : '';
+}
+
+// The node of a row's second line, to tell a line kept from one drawn again.
+function rowSubNode(i) {
+  return gameRowsNow()[i].querySelectorAll('.fh-sub')[0] || null;
+}
+
+// The player closing the plant list: the game's Vue state says so and the list leaves the page.
+function closePlantList() {
+  var doc = hudPage();
+
+  doc.getElementById('app')._vnode.component.setupState.state.maturePlantsExpanded = false;
+  doc.querySelector('.mature-popover').remove();
+}
+
+// The game dropping its HUD page and making a new one, as it does when it reloads the HUD.
+function swapHud() {
+  document.querySelector('iframe').remove();
+
+  return openHud();
 }

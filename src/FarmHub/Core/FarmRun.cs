@@ -143,13 +143,40 @@ public static class FarmRun
     /// </summary>
     public static FarmOutcome Auto(IFarmGame game, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked) => WithWorld(game, world =>
     {
-        var planted = PlantWhere(game, book, world, pot =>
-            book.PresetFor(world.SaveKey, pot)?.AutoReplant == true && !(retryAt.TryGetValue(pot.Id, out var at) && now < at),
-            failed => retryAt[failed] = now + RetrySeconds);
+        var planted = PlantWhere(game, book, world, pot => IsAutoReplanted(world, book, pot, now, retryAt), failed => retryAt[failed] = now + RetrySeconds);
         var switched = isKeepingRobotsStocked ? Picks.RobotSwitches(world, book).Count(change => game.SetRobotTier(change.RobotId, change.Tier, change.SeedId, change.FertId)) : 0;
 
         return new FarmOutcome.AutoDone(planted is FarmOutcome.Planted done ? done.Count : 0, switched);
     });
+
+    /// <summary>Whether any preset replants on its own.</summary>
+    public static bool HasAutoReplant(PresetBook book)
+    {
+        foreach (var preset in book.Presets)
+        {
+            if (preset.AutoReplant) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether Auto, run now on this world, would try anything: an empty pot it would replant (or find out of seed), or
+    /// a robot tier it would switch. The caller skips Auto while this is false.
+    /// </summary>
+    public static bool HasAutoWork(FarmWorld world, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked)
+    {
+        foreach (var pot in world.Pots)
+        {
+            if (CanPlant(pot) && world.Catalog.Kinds.ContainsKey(pot.KindId) && IsAutoReplanted(world, book, pot, now, retryAt)) return true;
+        }
+
+        return isKeepingRobotsStocked && Picks.RobotSwitches(world, book).Count > 0;
+    }
+
+    /// <summary>The auto pass's own test of a pot, before the pot's seed is picked: its preset replants and it is not waiting out a retry.</summary>
+    private static bool IsAutoReplanted(FarmWorld world, PresetBook book, Pot pot, float now, IDictionary<long, float> retryAt) =>
+        book.PresetFor(world.SaveKey, pot)?.AutoReplant == true && !(retryAt.TryGetValue(pot.Id, out var at) && now < at);
 
     /// <summary>The chore a pot needs first, or null when it needs none.</summary>
     public static TendAction? NeededChore(Pot pot) => pot switch

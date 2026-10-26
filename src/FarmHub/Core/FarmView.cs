@@ -27,9 +27,11 @@ public static class FarmView
         WriteSettings(json, settings);
     });
 
-    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings) => Write(json =>
+    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings) => Ready(world, book, settings, Plan(world, book));
+
+    /// <param name="plan">Plan of this world and book, when the caller has it already.</param>
+    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings, FarmPlan plan) => Write(json =>
     {
-        var plan = Plan(world, book);
         var pots = Shown(world).OrderBy(pot => pot.Floor).ThenBy(pot => pot.Area).ThenBy(pot => pot.Id).ToList();
 
         json.WriteBoolean("ready", true);
@@ -64,11 +66,21 @@ public static class FarmView
     /// The number on the HUD button: pots with a chore waiting (ripe, dead, pests, weeds or dry) and empty pots a
     /// press of Plant would fill. An empty pot with no seed left is not counted, since nothing the player presses helps.
     /// </summary>
-    public static int NeedsYou(FarmWorld world, PresetBook book)
-    {
-        var plan = Plan(world, book);
+    public static int NeedsYou(FarmWorld world, PresetBook book) => NeedsYou(world, Plan(world, book));
 
-        return Shown(world).Count(pot => FarmRun.NeededChore(pot) != null || plan.Plant.TryGetValue(pot.Id, out var choice) && choice != null);
+    /// <param name="plan">Plan of this world and its book.</param>
+    public static int NeedsYou(FarmWorld world, FarmPlan plan)
+    {
+        var count = 0;
+
+        foreach (var pot in world.Pots)
+        {
+            if (!world.Catalog.Kinds.ContainsKey(pot.KindId)) continue;
+
+            if (FarmRun.NeededChore(pot) != null || plan.Plant.TryGetValue(pot.Id, out var choice) && choice != null) count++;
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -95,6 +107,15 @@ public static class FarmView
     }
 
     public static bool IsRottingSoon(Pot pot, int rotWarnHours) => pot.State == PotState.Ripe && pot.HoursToRot is { } hours && hours <= rotWarnHours;
+
+    /// <summary>A pot's growth as the window shows it, whole percent.</summary>
+    internal static int PercentShown(float progress) => (int)Math.Round(Math.Clamp(progress, 0f, 1f) * 100f, MidpointRounding.AwayFromZero);
+
+    /// <summary>Hours as the window shows them, to the tenth, never below 0.</summary>
+    internal static double HoursShown(float hours) => Math.Round(Math.Max(0f, hours), 1);
+
+    /// <summary>A robot's battery as the window shows it, whole percent.</summary>
+    internal static int BatteryShown(Robot robot) => robot.BatteryMax > 0f ? (int)Math.Round(Math.Clamp(robot.Battery / robot.BatteryMax, 0f, 1f) * 100f, MidpointRounding.AwayFromZero) : 0;
 
     private static IEnumerable<Pot> Shown(FarmWorld world) => world.Pots.Where(pot => world.Catalog.Kinds.ContainsKey(pot.KindId));
 
@@ -125,7 +146,7 @@ public static class FarmView
         json.WriteString("state", StateName(pot.State));
         json.WriteNumber("plant", pot.PlantId);
         WriteProblems(json, pot.Problems);
-        json.WriteNumber("progress", (int)Math.Round(Math.Clamp(pot.Progress, 0f, 1f) * 100f, MidpointRounding.AwayFromZero));
+        json.WriteNumber("progress", PercentShown(pot.Progress));
         WriteHours(json, "ripeIn", pot.State == PotState.Growing ? pot.HoursToRipe : null);
         WriteHours(json, "rotIn", pot.State == PotState.Ripe ? pot.HoursToRot : null);
         json.WriteBoolean("rotSoon", IsRottingSoon(pot, settings.RotWarnHours));
@@ -201,7 +222,7 @@ public static class FarmView
         json.WriteString("id", robot.Id.ToString(CultureInfo.InvariantCulture));
         json.WriteString("name", robot.Name);
         json.WriteNumber("floor", robot.Floor);
-        json.WriteNumber("battery", robot.BatteryMax > 0f ? (int)Math.Round(Math.Clamp(robot.Battery / robot.BatteryMax, 0f, 1f) * 100f, MidpointRounding.AwayFromZero) : 0);
+        json.WriteNumber("battery", BatteryShown(robot));
         json.WriteBoolean("on", robot.IsOn);
         json.WriteStartArray("tiers");
 
@@ -220,19 +241,8 @@ public static class FarmView
 
     private static void WritePreset(Utf8JsonWriter json, PresetBook book, FarmPreset preset)
     {
-        using var buffer = new MemoryStream();
-
-        using (var single = new Utf8JsonWriter(buffer))
-        {
-            PresetJson.WritePreset(single, preset);
-        }
-
-        using var parsed = JsonDocument.Parse(buffer.ToArray());
-
         json.WriteStartObject();
-
-        foreach (var property in parsed.RootElement.EnumerateObject()) property.WriteTo(json);
-
+        PresetJson.WritePresetFields(json, preset);
         json.WriteStartArray("uses");
 
         foreach (var use in book.UsesOf(preset.Id)) json.WriteStringValue(use);
@@ -261,7 +271,7 @@ public static class FarmView
 
     private static void WriteHours(Utf8JsonWriter json, string name, float? hours)
     {
-        if (hours is { } value) json.WriteNumber(name, Math.Round(Math.Max(0f, value), 1));
+        if (hours is { } value) json.WriteNumber(name, HoursShown(value));
         else json.WriteNull(name);
     }
 

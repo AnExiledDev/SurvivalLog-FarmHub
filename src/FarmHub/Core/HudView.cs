@@ -18,9 +18,12 @@ public static class HudView
     public static string NotReady() => "{\"ready\":false}";
 
     /// <param name="fromPresets">Whether Tend Garden also replants, plants and fertilizes from the presets.</param>
-    public static string Ready(FarmWorld world, PresetBook book, int rotWarnHours, bool fromPresets)
+    public static string Ready(FarmWorld world, PresetBook book, int rotWarnHours, bool fromPresets) =>
+        Ready(world, book, rotWarnHours, fromPresets, FarmView.Plan(world, book));
+
+    /// <param name="plan">FarmView.Plan of this world and book, when the caller has it already.</param>
+    public static string Ready(FarmWorld world, PresetBook book, int rotWarnHours, bool fromPresets, FarmPlan plan)
     {
-        var plan = FarmView.Plan(world, book);
         var shown = world.Pots.Where(pot => world.Catalog.Kinds.ContainsKey(pot.KindId)).ToList();
         var replants = Replants(world, book, plan, shown);
 
@@ -31,7 +34,7 @@ public static class HudView
             json.WriteStartObject();
             json.WriteBoolean("ready", true);
             json.WriteBoolean("fromPresets", fromPresets);
-            json.WriteNumber("stamina", world.Stamina is { } stamina ? (int)Math.Floor(stamina) : -1);
+            json.WriteNumber("stamina", StaminaShown(world));
             json.WriteNumber("cost", world.ChoreCost);
             json.WriteStartArray("pots");
 
@@ -95,6 +98,12 @@ public static class HudView
         _ => pot.Problems.HasFlag(Problems.NeedsFeed) ? "feed" : "",
     };
 
+    /// <summary>The stamina as the plan tip shows it, whole points, -1 when it could not be read.</summary>
+    internal static int StaminaShown(FarmWorld world) => world.Stamina is { } stamina ? (int)Math.Floor(stamina) : -1;
+
+    /// <summary>A ripe pot's hours before it rots, to the tenth the HUD shows; null for any other pot.</summary>
+    internal static double? RotShown(Pot pot) => pot.State == PotState.Ripe && pot.HoursToRot is { } hours ? Math.Round(hours, 1) : null;
+
     private static void WritePot(Utf8JsonWriter json, FarmWorld world, Pot pot, int rotWarnHours, IReadOnlyDictionary<long, int> replants)
     {
         json.WriteStartObject();
@@ -102,7 +111,7 @@ public static class HudView
         json.WriteString("area", world.AreaName(pot.Area));
         json.WriteString("kind", world.Catalog.KindName(pot.KindId));
 
-        if (pot.State == PotState.Ripe && pot.HoursToRot is { } hours) json.WriteNumber("rot", Math.Round(hours, 1));
+        if (RotShown(pot) is { } rot) json.WriteNumber("rot", rot);
         else json.WriteNull("rot");
 
         json.WriteBoolean("warn", FarmView.IsRottingSoon(pot, rotWarnHours));

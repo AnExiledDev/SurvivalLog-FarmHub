@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using ExiledToolkit;
 using FarmHub.Core;
 using UnityEngine;
 
@@ -188,7 +189,7 @@ internal sealed class FarmSession
         catch (Exception ex)
         {
             _log($"page command {command} failed: {ex}");
-            _page.Status(Texts.Failed.Pick(IsChinese));
+            Status(Texts.Failed.Pick(IsChinese));
         }
     }
 
@@ -305,10 +306,13 @@ internal sealed class FarmSession
         Say(message);
     }
 
+    /// <summary>A result line, in the window while it is open and as a toast otherwise; a failure shows as an error.</summary>
+    private void Status(string message) => _page.Status(message, _isOpen, message == Texts.Failed.Pick(IsChinese) ? ToastKind.Error : ToastKind.Info);
+
     private void Say(string message)
     {
         _log(message);
-        _page.Status(message);
+        Status(message);
         Redraw();
     }
 
@@ -438,7 +442,7 @@ internal sealed class FarmSession
 
         if (read is FarmRead.NoGame)
         {
-            _page.Status(Texts.NoGame.Pick(IsChinese));
+            Status(Texts.NoGame.Pick(IsChinese));
 
             return;
         }
@@ -569,7 +573,7 @@ internal sealed class FarmSession
             _log($"{name} failed: {ex}");
         }
 
-        _page.Status(message);
+        Status(message);
         Redraw();
     }
 

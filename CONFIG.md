@@ -1,6 +1,6 @@
 # Farm Hub settings
 
-Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. Edit it while the game is closed, or change the settings in game on the Mod Manager's Mods screen. Delete the file to get the defaults back. Without Exiled's Toolkit installed, changes made on the Mods screen take effect at the next game start.
+Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. Edit it while the game is closed, or change the settings in game on the Mod Manager's Mods screen. Delete the file to get the defaults back.
 
 Planting presets and each pot's own preset are not in this file. They are set in the Farm Hub window and kept in `BepInEx\config\farm-hub.json`, shared by every save. Delete that file to start over with one empty preset.
 

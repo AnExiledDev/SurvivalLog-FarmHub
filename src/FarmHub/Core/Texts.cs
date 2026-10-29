@@ -62,6 +62,9 @@ public static class Texts
     public static readonly Phrase RobotGone = new("That robot is gone.", "这台机器人已经不在了。");
     public static readonly Phrase RobotNumber = new("Robot {0}", "机器人 {0}");
     public static readonly Phrase RobotTierSet = new("{0}: sow setting changed.", "{0}：播种设置已更改。");
+    /// <summary>Who a toast is from, on its first line.</summary>
+    public static readonly Phrase Source = new("Farm Hub", "农场中心");
+
     public static readonly Phrase Failed = new("Farm Hub failed, see " + Log + ".", "Farm Hub 出错，详见 " + Log + "。");
 
     public static readonly Phrase Harvest = new("Harvest", "收获");

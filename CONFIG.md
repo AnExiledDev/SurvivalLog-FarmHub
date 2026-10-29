@@ -19,6 +19,12 @@ Planting presets and each pot's own preset are not in this file. They are set in
 | --- | --- | --- |
 | `RobotKeepStocked` | `false` | When a planter robot runs out of the seed for a pot size, switch that size to the next seed in the planting preset for the robot's floor, so it keeps sowing. This changes the robot's own sow settings. Also in the window's Robots tab. |
 
+## Interface
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `UiScale` | `0` | How big Farm Hub's own windows, panels and messages are drawn, in percent, from 75 to 200. At `0` they follow the UI size set in Exiled's Toolkit (its `UiScale`). Needs Exiled's Toolkit 0.11.0 or newer. |
+
 ## Diagnostics
 
 | Setting | Default | What it does |

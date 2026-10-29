@@ -19,7 +19,7 @@ Every pot at home in one window: what grows in it, when it is ripe, when it rots
 [*][b]Rotting soon[/b]: a ripe crop that will rot within 12 hours (you pick 6 to 48) is flagged.[/*]
 [*][b]Planter robots[/b]: change the seed and fertilizer for each pot size, and optionally switch a robot to the next seed in its floor's preset when it runs out.[/*]
 [*][b]Stock[/b]: the seeds and fertilizer you own, and how many pots of each size they would fill.[/*]
-[*][b]UI size[/b]: with Exiled's Toolkit 0.10.0 or newer, its UI size setting draws the window bigger or smaller, as far as it still fits on the screen.[/*]
+[*][b]UI size[/b]: with Exiled's Toolkit 0.10.0 or newer, its UI size setting draws the window bigger or smaller, as far as it still fits on the screen. With 0.11.0 or newer, Farm Hub's own UiScale setting can set a size for this mod alone.[/*]
 [/list]
 Presets are kept in [font=Courier New]BepInEx\config\farm-hub.json[/font], shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
@@ -82,7 +82,7 @@ Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]g
 [*][b]即将腐烂[/b]：12 小时内（可选 6 到 48）会腐烂的成熟作物会被标出。[/*]
 [*][b]种植机器人[/b]：按花盆大小修改种子和肥料；还可以在机器人种子用完时，自动换成所在楼层方案中的下一种种子。[/*]
 [*][b]库存[/b]：你拥有的种子和肥料，以及它们够种多少个各尺寸的花盆。[/*]
-[*][b]界面大小[/b]：安装 Exiled's Toolkit 0.10.0 或更新版本后，可以用它的界面大小设置放大或缩小窗口，最大放到窗口仍能完整显示在屏幕上为止。[/*]
+[*][b]界面大小[/b]：安装 Exiled's Toolkit 0.10.0 或更新版本后，可以用它的界面大小设置放大或缩小窗口，最大放到窗口仍能完整显示在屏幕上为止。0.11.0 或更新版本还可以用 Farm Hub 自己的 UiScale 设置单独调整本模组的大小。[/*]
 [/list]
 种植方案保存在 [font=Courier New]BepInEx\config\farm-hub.json[/font]，所有存档共用。Farm Hub 不会向存档添加任何内容，也不会修改游戏文件，可以随时移除。
 

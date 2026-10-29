@@ -404,6 +404,7 @@ public class PageScriptTests
         page.Open(FarmView.Ready(Home().World, TwoPresets(), Settings));
 
         Assert.Equal("2", page.Text("handed.length"));
+        Assert.Equal("2", page.Text("handed.filter(function (h) { return h.options.mod === 'FarmHub'; }).length"));
         Assert.Equal("fh-root", page.Text("handed[0].el.id"));
         Assert.True(page.Is("handed[0].options.fit === document.querySelector('.fh-win')"));
         Assert.Equal("fh-toast", page.Text("handed[1].el.id"));

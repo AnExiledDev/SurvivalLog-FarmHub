@@ -15,12 +15,14 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.4.4";
+    private const string Version = "0.5.0";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()
     {
         if (!OptionalLive.IsToolkitInstalled) Log.LogInfo(OptionalLive.MissingNote);
+
+        OptionalUiSize.Bind(Config);
 
         var panelKey = Config.Bind("General", "PanelKey", KeyCode.G,
             "Key that opens and closes the Farm Hub window, G by default, pressed with Shift while PanelKeyShift is true. None turns the key off; the plant button in the HUD's tool column still opens the window.\n" +

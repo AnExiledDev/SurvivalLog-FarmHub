@@ -115,8 +115,9 @@ internal sealed class FarmSession
 
         TakeTendHooks(now);
 
-        // One question to Unity on the frames no key went down, which is nearly all of them.
-        if (!_keyboard.IsClaimed && Input.anyKeyDown)
+        // One question to Unity on the frames no key went down, which is nearly all of them. A key typed into one of the
+        // game's own text boxes (the item search) is text, not the panel key.
+        if (!_keyboard.IsClaimed && !InputGate.IsGameTyping && Input.anyKeyDown)
         {
             if (_panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
             {

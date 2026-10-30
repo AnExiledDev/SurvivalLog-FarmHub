@@ -35,6 +35,7 @@ internal sealed class FarmSession
     private readonly Dictionary<long, int> _sowTries = new();
     private readonly List<long> _sowing = new();
     private readonly ViewCache _views = new();
+    private readonly Func<bool> _isPanelKeyDown;
 
     private PresetBook? _book;
     private KeyCode _panelKey;
@@ -68,8 +69,12 @@ internal sealed class FarmSession
         _saveRobots = saveRobots;
         _saveFromPresets = saveFromPresets;
         _log = log;
+        _isPanelKeyDown = () => Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted;
         TendHooks.CanSow = CanSow;
     }
+
+    /// <summary>Whether the player is typing in a text box in any mod's window, so the window key is text, not a hotkey.</summary>
+    private static readonly Func<bool> IsTypingAnywhere = () => Typing.IsActive;
 
     /// <summary>
     /// A refresh is spread over frames, one part per frame: the farm read (itself a slice per frame), then the HUD and
@@ -119,7 +124,7 @@ internal sealed class FarmSession
         // game's own text boxes (the item search) is text, not the panel key.
         if (!_keyboard.IsClaimed && !InputGate.IsGameTyping && Input.anyKeyDown)
         {
-            if (_panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted)
+            if (Hotkey.Fires(_panelKey != KeyCode.None, _isPanelKeyDown, IsTypingAnywhere))
             {
                 Toggle();
 

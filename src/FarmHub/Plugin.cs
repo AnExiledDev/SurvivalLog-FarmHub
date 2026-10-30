@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using BepInEx;
@@ -15,19 +16,19 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.5.3";
+    private const string Version = "0.5.4";
     private const string PresetFileName = "farm-hub.json";
 
     public override void Load()
     {
         OptionalUiSize.Bind(Config);
 
-        var panelKey = Config.Bind("General", "PanelKey", KeyCode.G,
-            "Key that opens and closes the Farm Hub window, G by default, pressed with Shift while PanelKeyShift is true. None turns the key off; the plant button in the HUD's tool column still opens the window.\n" +
-            "打开和关闭 Farm Hub 窗口的按键，默认 G，PanelKeyShift 为 true 时需同时按住 Shift。设为 None 则停用该按键，HUD 工具栏中的植物按钮仍可打开窗口。");
+        var panelKey = Config.Bind("General", "PanelKey", Enum.Parse<KeyCode>(Hotkey.DefaultKey),
+            "Key that opens and closes the Farm Hub window, pressed with Shift while PanelKeyShift is true. Unbound by default: the plant button in the HUD's tool column opens the window. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
+            "打开和关闭 Farm Hub 窗口的按键，PanelKeyShift 为 true 时需同时按住 Shift。默认不绑定：点击 HUD 工具栏中的植物按钮即可打开窗口。在此设置按键后也可以用键盘打开。在输入框里打字时该按键不起作用。");
         var isPanelKeyShifted = Config.Bind("General", "PanelKeyShift", true,
-            "When true, the window opens with Shift and PanelKey (Shift+G by default), and G alone stays the game's Tend Garden. When false, PanelKey alone opens the window.\n" +
-            "设为 true 时，按 Shift 加 PanelKey 打开窗口（默认 Shift+G），单按 G 仍是游戏自带的「巡园」。设为 false 时，单按 PanelKey 即可打开窗口。");
+            "When true, the window opens with Shift and PanelKey, so PanelKey can be G and G alone stays the game's Tend Garden. When false, PanelKey alone opens the window.\n" +
+            "设为 true 时，按 Shift 加 PanelKey 打开窗口，因此 PanelKey 可以设为 G，单按 G 仍是游戏自带的「巡园」。设为 false 时，单按 PanelKey 即可打开窗口。");
         var rotWarnHours = Config.Bind("General", "RotWarnHours", 12, new ConfigDescription(
             "A ripe crop that will rot within this many hours is flagged as rotting soon, on the HUD button and in the window.\n" +
             "成熟作物在这么多小时内会腐烂时，会在 HUD 按钮和窗口中标记为「快腐烂」。",

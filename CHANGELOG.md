@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4
+
+- The window key is now unbound by default; open the window with the plant button in the HUD, or set a key in the settings.
+- The window key no longer fires while you type in a text box in any mod's window.
+- Exiled's Toolkit 0.12.0 or newer is now required.
+- Made for Survival Log 1.1.20151.
+
 ## 0.5.3
 
 - Fixed: the Tend Garden tip is no longer hidden behind the Home Traps list below it.

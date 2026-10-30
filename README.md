@@ -2,7 +2,7 @@
 
 Every pot at home in one window: what grows in it, when it is ripe, when it rots, what it needs and what it gets planted with next. Plant, fertilize and tend everything with one press each, from planting presets with fallbacks, and keep your planter robots sowing.
 
-Press `Shift+G`, or the plant button in the tool column on the left of the screen, to open it. The button shows how many pots have a chore waiting or could be planted now.
+Press the plant button in the tool column on the left of the screen to open it, or set a key for it (`PanelKey`, unbound by default). The button shows how many pots have a chore waiting or could be planted now.
 
 ## Features
 
@@ -29,7 +29,7 @@ Farm Hub does what Greenline does. Use one or the other, not both.
 
 - Survival Log 1.1.20151. Built for this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.11.0 or newer. Farm Hub does not load without it. It shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
+- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.12.0 or newer. Farm Hub does not load without it. It keeps Farm Hub's key quiet while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
 
 ## Install
 
@@ -46,7 +46,7 @@ Delete `FarmHub.dll` from the `BepInEx\plugins` folder. For a clean slate, also 
 
 ## Configuration
 
-Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. The window opens with Shift+G by default; set `PanelKeyShift` to `false` to open it with G alone. The rot warning and the robot switch can also be set in the window, and `TendFromPresets` with the "from presets" box in the HUD's plant list. See [CONFIG.md](CONFIG.md) for every setting.
+Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the first time the game starts with the mod. The window key (`PanelKey`) is unbound by default, since the plant button opens the window. Set one to open it from the keyboard too: with `PanelKeyShift` on, the key is pressed with Shift, so `G` gives Shift+G and G alone stays the game's Tend Garden. The key does nothing while you type in a text box. The rot warning and the robot switch can also be set in the window, and `TendFromPresets` with the "from presets" box in the HUD's plant list. See [CONFIG.md](CONFIG.md) for every setting.
 
 ## Troubleshooting
 

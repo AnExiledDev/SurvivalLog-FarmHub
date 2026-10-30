@@ -158,6 +158,23 @@ public class PageScriptTests
     }
 
     [Fact]
+    public void With_no_panel_key_the_footer_and_settings_name_no_window_key()
+    {
+        var page = Opened();
+
+        page.Live(true, "");
+        ShowTab(page, "settings");
+
+        var footer = page.Text("panel().querySelectorAll('.fh-wfoot')[0].textContent");
+
+        Assert.Contains("GTend Garden (game)", footer);
+        Assert.DoesNotContain("this window", footer);
+        Assert.DoesNotContain("None", footer);
+        Assert.Contains("No key is set", page.Text("panel().textContent"));
+        Assert.True(page.Is("panel().querySelectorAll('.fh-warnbox').length === 0"));
+    }
+
+    [Fact]
     public void Plant_all_asks_once_and_the_buttons_wait_for_the_answer()
     {
         var page = Opened();

@@ -8,8 +8,8 @@ Planting presets and each pot's own preset are not in this file. They are set in
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `PanelKey` | `G` | Opens and closes the Farm Hub window, pressed with Shift while `PanelKeyShift` is `true`. `None` turns the key off; the plant button in the tool column on the left of the screen still opens it. |
-| `PanelKeyShift` | `true` | When `true`, the window opens with Shift and `PanelKey` (Shift+G), and G alone stays the game's Tend Garden. When `false`, `PanelKey` alone opens the window; with G, that also runs Tend Garden. |
+| `PanelKey` | `None` | Opens and closes the Farm Hub window, pressed with Shift while `PanelKeyShift` is `true`. Unbound by default: the plant button in the tool column on the left of the screen opens the window. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box. |
+| `PanelKeyShift` | `true` | When `true`, the window opens with Shift and `PanelKey`, so `PanelKey` can be `G` (Shift+G) while G alone stays the game's Tend Garden. When `false`, `PanelKey` alone opens the window; with G, that also runs Tend Garden. |
 | `TendFromPresets` | `true` | When `true`, the game's Tend Garden (G, or the plant button in the HUD's plant list) replants each harvested pot from its planting preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones from their presets. Replanting needs the game's Replant box on. A pot whose preset has no seed left opens the plant screen as usual. Also the "from presets" box next to Replant in the HUD's plant list. |
 | `RotWarnHours` | `12` | A ripe crop that will rot within this many hours (1 to 96) is flagged as rotting soon. Also in the window's Settings tab, as 6, 12, 24 or 48. |
 

@@ -2391,6 +2391,13 @@
     '.mature-panel .mature-popover{max-width:340px}',
     '.mature-panel .mature-item-row{flex-wrap:wrap}',
     '#maturePatrolBtn .entry-tip{width:260px;max-width:300px;white-space:normal;left:-16px;transform:none;z-index:30}',
+    // A hovered toggle row gets a brightness filter, which makes it a stacking context of its own, so the Tend Garden
+    // tip inside it drew under the trap panel below. A z-index on the hovered panel puts it on top of its neighbours.
+    '.mature-panel:hover{z-index:1}',
+    // The HUD's top-left panel is a stacking context at z-index 100 and the tool column (.vertical-tools) sits at 101,
+    // so nothing inside the panel can draw over the column whatever its own z-index. While the plant list is open or
+    // the plant row is under the mouse, the panel is lifted just above the column.
+    '.top-left-panel:has(.mature-toggle-row.is-expanded),.top-left-panel:has(.mature-panel:hover){z-index:102}',
     '.fh-sub{flex-basis:100%;display:flex;align-items:center;gap:5px;padding-left:18px;font-size:9.5px;color:rgba(255,255,255,0.55);white-space:nowrap;text-shadow:1px 1px 2px black}',
     '.fh-sub img,.fh-empty img.fh-pot{width:11px;height:11px;object-fit:contain}',
     '.fh-sub .fh-right{margin-left:auto;display:inline-flex;align-items:center;gap:4px}',

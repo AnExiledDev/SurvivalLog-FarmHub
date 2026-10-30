@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.3
+
+- Fixed: the Tend Garden tip is no longer hidden behind the Home Traps list below it.
+- Fixed: the Tend Garden tip and the open plant list are no longer hidden behind the tool buttons on the left of the screen.
+- Made for Survival Log 1.1.20151.
+
 ## 0.5.2
 
 - Fixed: on Survival Log 1.1.20151, typing Farm Hub's key in the item search no longer opens or closes the Farm Hub window.

@@ -135,4 +135,16 @@ public class HudPanelTests
         Assert.False(page.Is("hudPage().querySelector('.fh-hudadd')"));
         Assert.Equal(2, (int)double.Parse(page.Text("gameRowsNow().length")));
     }
+
+    [Fact]
+    public void The_tend_garden_tip_and_the_open_plant_list_draw_above_the_trap_panel_and_the_tool_column()
+    {
+        var page = Panel(Home());
+        var css = page.Text("hudPage().getElementById('fh-panel-style').textContent");
+
+        // The game's hover filter makes the plant row a stacking context, so the hovered panel is raised over the trap panel.
+        Assert.Contains(".mature-panel:hover{z-index:1}", css);
+        // The tool column (.vertical-tools) is at z-index 101; the game's top-left panel at 100.
+        Assert.Contains(".top-left-panel:has(.mature-toggle-row.is-expanded),.top-left-panel:has(.mature-panel:hover){z-index:102}", css);
+    }
 }

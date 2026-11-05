@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
+using ExiledToolkit;
+using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
 using FarmHub.Adapters;
 using FarmHub.Core;
 using HarmonyLib;
@@ -12,16 +15,25 @@ using UnityEngine;
 namespace FarmHub;
 
 [BepInPlugin(Guid, "Farm Hub", Version)]
-[BepInDependency(OptionalLive.ToolkitGuid, OptionalLive.ToolkitVersion)]
+[BepInDependency(ToolkitGuid, ToolkitVersion)]
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.5.4";
+    private const string Version = "0.5.5";
+
+    /// <summary>Exiled's Toolkit: its shared helpers, toasts, live settings, UI size and typing check all come from it.</summary>
+    private const string ToolkitGuid = "com.dev.survivallog.exiledtoolkit";
+    private const string ToolkitVersion = ">=0.19.0";
+
     private const string PresetFileName = "farm-hub.json";
+    private const string LogFileName = "farm-hub.log";
+
+    /// <summary>The name the page script hands its panels to the Toolkit's UI size with.</summary>
+    private const string UiSizeName = "FarmHub";
 
     public override void Load()
     {
-        OptionalUiSize.Bind(Config);
+        ModUiSize.Bind(Config, UiSizeName);
 
         var panelKey = Config.Bind("General", "PanelKey", Enum.Parse<KeyCode>(Hotkey.DefaultKey),
             "Key that opens and closes the Farm Hub window, pressed with Shift while PanelKeyShift is true. Unbound by default: the plant button in the HUD's tool column opens the window. Set a key here to open it from the keyboard too. The key does nothing while you type in a text box.\n" +
@@ -42,24 +54,27 @@ public sealed class Plugin : BasePlugin
         var isLoggingToFile = Config.Bind("Diagnostics", "LogToFile", false, new ConfigDescription(
             "When true, what Farm Hub does is also written to BepInEx\\farm-hub.log, which is kept between game starts. Turn it on when reporting a problem.\n" +
             "设为 true 时，Farm Hub 的操作也会写入 BepInEx\\farm-hub.log，该文件在重启游戏后保留。报告问题时再打开。", null, "ModManager.Advanced"));
-        var log = new FarmLog(Log, Path.Combine(Paths.BepInExRootPath, "farm-hub.log"));
-        var harmony = new Harmony(Guid);
+
+        var log = new ModLog(Log, LogFileName);
+
+        // Before the first line, since the file copy is on until the setting says otherwise.
+        LiveSettings.Watch(isLoggingToFile, isOn => log.IsFileOn = isOn);
+
+        var hooks = new PatchKit(new Harmony(Guid), log.Write);
         var session = new FarmSession(
             new GameFarm(log.Write),
-            new WebPage(log.Write),
+            new FarmPage(log.Write),
             new PresetFileOnDisk(Path.Combine(Paths.ConfigPath, PresetFileName), log.Write),
             hours => rotWarnHours.Value = hours,
             isOn => isKeepingRobotsStocked.Value = isOn,
             isOn => isTendFromPresets.Value = isOn,
             log.Write);
 
-        OptionalLive.Watch(isLoggingToFile, isOn => log.IsFileOn = isOn);
         log.Write($"===== Farm Hub {Version} started");
-        InputGate.Apply(harmony, log.Write);
-        PageMessages.Apply(harmony, log.Write);
-        TendHooks.Apply(harmony, log.Write);
+        GameKeys.Apply(hooks);
+        TendHooks.Apply(hooks);
 
-        OptionalLive.Watch(() =>
+        LiveSettings.Watch(() =>
         {
             session.UseSettings(panelKey.Value, isPanelKeyShifted.Value, rotWarnHours.Value, isKeepingRobotsStocked.Value, isTendFromPresets.Value);
             log.Write($"key {(isPanelKeyShifted.Value ? "Shift+" : "")}{panelKey.Value}, rot warning {rotWarnHours.Value} h, robots kept stocked {isKeepingRobotsStocked.Value}, tend from presets {isTendFromPresets.Value}");

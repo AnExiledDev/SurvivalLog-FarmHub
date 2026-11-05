@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5
+
+- Now uses Exiled's Toolkit for its shared parts, so it needs Exiled's Toolkit 0.19.0 or newer.
+- Made for Survival Log 1.1.20719.
+
 ## 0.5.4
 
 - The window key is now unbound by default; open the window with the plant button in the HUD, or set a key in the settings.

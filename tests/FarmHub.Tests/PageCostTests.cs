@@ -84,7 +84,9 @@ public class PageCostTests
     {
         var page = new PageScript();
 
+        // The Toolkit's first look at a new HUD page takes out a button an older copy of the script left there.
         page.OpenHud();
+        page.Poll();
 
         Assert.Equal(0, SearchesOver(page, 2));
 

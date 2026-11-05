@@ -382,6 +382,62 @@ public class PageScriptTests
         Assert.False(page.Is("hudButton()"));
     }
 
+    // ===== Load order (Exiled's Toolkit's page API) =====
+
+    /// <summary>The plugin sends everything again when the page says it is ready, so the page must say it once it can work.</summary>
+    [Fact]
+    public void With_the_Toolkit_loaded_first_the_page_says_ready_and_shows_its_button()
+    {
+        var page = new PageScript(isToolkitFirst: true);
+
+        page.OpenHud();
+        page.Live(true, "G");
+
+        Assert.True(page.HasSaidReady);
+        Assert.True(page.Is("hudButton()"));
+    }
+
+    /// <summary>
+    /// The game can run Farm Hub's script before the Toolkit's. Until the Toolkit's arrives the page says nothing, and
+    /// then it says it is ready and shows the button with what the plugin already sent.
+    /// </summary>
+    [Fact]
+    public void With_the_page_loaded_first_it_waits_for_the_Toolkit_then_says_ready_and_shows_its_button()
+    {
+        var page = new PageScript(isToolkitFirst: false);
+
+        page.OpenHud();
+        page.Live(true, "G");
+        page.Badge(4);
+
+        Assert.False(page.HasSaidReady);
+        Assert.False(page.Is("hudButton()"));
+
+        page.LoadToolkit();
+
+        Assert.True(page.HasSaidReady);
+        Assert.True(page.Is("hudPage().querySelector('.vertical-tools').firstChild === hudButton()"));
+        Assert.Equal("4", page.Text("hudButton().querySelector('.fh-hud-badge').textContent"));
+    }
+
+    /// <summary>A window opened before the Toolkit's script ran is drawn at once and gets its style when the Toolkit arrives.</summary>
+    [Fact]
+    public void A_window_opened_before_the_Toolkit_loaded_gets_its_style_when_it_arrives()
+    {
+        var game = Home();
+        var page = new PageScript(isToolkitFirst: false);
+
+        page.Catalog(CatalogView.Write(game.World.Catalog));
+        page.Open(FarmView.Ready(game.World, TwoPresets(), Settings));
+
+        Assert.True(page.Is("panel()"));
+        Assert.False(page.Is("document.getElementById('fh-style')"));
+
+        page.LoadToolkit();
+
+        Assert.True(page.Is("document.getElementById('fh-style').textContent.indexOf('.fh-win') >= 0"));
+    }
+
     [Fact]
     public void The_window_speaks_the_games_language()
     {

@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
+using ExiledToolkit.Web;
 using FarmHub.Core;
 using GameCore.HotUpdate;
 using GameCore.HotUpdate.Battle.Logic;
@@ -634,7 +637,7 @@ internal sealed class GameFarm : IFarmGame
             {
                 if (!_areaNames.TryGetValue(area, out var name))
                 {
-                    name = NonEmpty(EnvAreaHelper.GetAreaDisplayName(area)) ?? "";
+                    name = GameNames.NonEmpty(EnvAreaHelper.GetAreaDisplayName(area)) ?? "";
                     _areaNames[area] = name;
                 }
 
@@ -714,7 +717,7 @@ internal sealed class GameFarm : IFarmGame
         if (_robotNames.TryGetValue(configId, out var known)) return known;
 
         var row = config._Config_Player_Dict is { } table && table.TryGetValue(configId, out var found) ? found : null;
-        var name = row == null ? null : Translate(config, row.Name) ?? NonEmpty(row.Name_Local);
+        var name = row == null ? null : GameNames.Translate(config, row.Name) ?? GameNames.NonEmpty(row.Name_Local);
 
         _robotNames[configId] = name;
 
@@ -826,9 +829,9 @@ internal sealed class GameFarm : IFarmGame
 
             if (plant != null)
             {
-                var name = Translate(config, row.Name) ?? $"Pot {row.ID}";
+                var name = GameNames.Translate(config, row.Name) ?? $"Pot {row.ID}";
 
-                kinds[row.ID] = new PotKind(row.ID, name, Icons().Resolve(NonEmpty(row.ICON)), plant.Capacity, plant.AddLight, plant.AddHeat, plant.NeedPower, plant.GrowthFaster);
+                kinds[row.ID] = new PotKind(row.ID, name, Icons().Resolve(GameNames.NonEmpty(row.ICON)), plant.Capacity, plant.AddLight, plant.AddHeat, plant.NeedPower, plant.GrowthFaster);
             }
 
             yield return true;
@@ -849,7 +852,7 @@ internal sealed class GameFarm : IFarmGame
 
         foreach (var row in cropRows)
         {
-            var name = Translate(config, row.Name) ?? NonEmpty(row.Name_Local) ?? $"Crop {row.ID}";
+            var name = GameNames.Translate(config, row.Name) ?? GameNames.NonEmpty(row.Name_Local) ?? $"Crop {row.ID}";
             var harvest = row.Gain != null && row.Gain.Count > 0 ? ItemRow(config, row.Gain[0]) : null;
 
             crops[row.ID] = new Crop(row.ID, name, ItemIcon(harvest), row.Size, row.GrowthTime / SecondsPerHour, row.HarvestTime / SecondsPerHour, GreenhouseResearchPlant.IsResearchPlant(row.ID));
@@ -951,9 +954,9 @@ internal sealed class GameFarm : IFarmGame
     }
 
     private static string ItemName(ConfigManager config, Config_Item item) =>
-        Translate(config, item.ItemName) ?? NonEmpty(item.ItemName_Local) ?? NonEmpty(item.ItemName) ?? $"Item {item.ID}";
+        GameNames.ItemName(config, item) ?? $"Item {item.ID}";
 
-    private string? ItemIcon(Config_Item? item) => item == null ? null : Icons().Resolve(NonEmpty(item.WebIcon) ?? NonEmpty(item.Icon));
+    private string? ItemIcon(Config_Item? item) => item == null ? null : Icons().Resolve(GameNames.NonEmpty(item.WebIcon) ?? GameNames.NonEmpty(item.Icon));
 
     private IconIndex Icons() => _icons ?? IconIndex.Empty;
 
@@ -1008,17 +1011,6 @@ internal sealed class GameFarm : IFarmGame
             return Task.FromResult((IconIndex.Empty, NoIconsNote + ex.Message));
         }
     }
-
-    private static string? Translate(ConfigManager config, string? key)
-    {
-        if (string.IsNullOrEmpty(key)) return null;
-
-        var text = config.GetLocalTxt(key);
-
-        return string.IsNullOrEmpty(text) || text == key ? null : text;
-    }
-
-    private static string? NonEmpty(string? text) => string.IsNullOrWhiteSpace(text) ? null : text;
 
     private void ReportOnce(string operation, Exception ex)
     {

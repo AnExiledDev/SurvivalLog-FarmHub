@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using ExiledToolkit.Game;
 using GameCore.HotUpdate;
 using GameCore.HotUpdate.Battle.Logic;
-using HarmonyLib;
 using UnityEngine;
 
 namespace FarmHub.Adapters;
@@ -21,9 +21,8 @@ internal static class TendHooks
 
     private static readonly Dictionary<long, float> ReplantSentAt = new();
     private static readonly List<long> Sows = new();
-    private static readonly HashSet<string> ReportedFailures = new();
 
-    private static Action<string> _log = _ => { };
+    private static PatchKit? _hooks;
     private static bool _isPatrolSeen;
 
     /// <summary>The TendFromPresets setting.</summary>
@@ -35,15 +34,15 @@ internal static class TendHooks
     /// <summary>Whether a pot's preset has a seed for it right now; the session answers from its last read of the farm.</summary>
     public static Func<long, bool> CanSow { get; set; } = _ => false;
 
-    public static void Apply(Harmony harmony, Action<string> log)
+    public static void Apply(PatchKit hooks)
     {
-        _log = log;
-        Patch(harmony, AccessTools.Method(typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.Dispatch)), nameof(NoteReplant), null,
-            "Tend Garden's replant walks are noted", "Tend Garden opens the game's plant screen to replant");
-        Patch(harmony, AccessTools.Method(typeof(AE_OpenPlantPanel), nameof(AE_OpenPlantPanel.Run)), nameof(SowInstead), null,
-            "Tend Garden replants from the presets", "Tend Garden opens the game's plant screen to replant");
-        Patch(harmony, AccessTools.Method(typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.OnBatchRequest)), null, nameof(NotePatrol),
-            "Tend Garden also plants and fertilizes from the presets", "Tend Garden does not plant or fertilize from the presets");
+        _hooks = hooks;
+        hooks.Patch(typeof(TendHooks), typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.Dispatch), prefix: nameof(NoteReplant),
+            done: "Tend Garden's replant walks are noted", consequence: "Tend Garden opens the game's plant screen to replant");
+        hooks.Patch(typeof(TendHooks), typeof(AE_OpenPlantPanel), nameof(AE_OpenPlantPanel.Run), prefix: nameof(SowInstead),
+            done: "Tend Garden replants from the presets", consequence: "Tend Garden opens the game's plant screen to replant");
+        hooks.Patch(typeof(TendHooks), typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.OnBatchRequest), postfix: nameof(NotePatrol),
+            done: "Tend Garden also plants and fertilizes from the presets", consequence: "Tend Garden does not plant or fertilize from the presets");
     }
 
     /// <summary>Whether a walk has handed over a pot to sow; asked every frame, so TakeSows builds its list only when there is one.</summary>
@@ -69,22 +68,6 @@ internal static class TendHooks
         return isSeen;
     }
 
-    private static void Patch(Harmony harmony, System.Reflection.MethodInfo? original, string? prefix, string? postfix, string done, string consequence)
-    {
-        try
-        {
-            harmony.Patch(
-                original ?? throw new MissingMethodException(done),
-                prefix: prefix == null ? null : new HarmonyMethod(typeof(TendHooks), prefix),
-                postfix: postfix == null ? null : new HarmonyMethod(typeof(TendHooks), postfix));
-            _log(done);
-        }
-        catch (Exception ex)
-        {
-            _log($"could not hook for \"{done}\", so {consequence}: {ex.Message}");
-        }
-    }
-
     /// <summary>The patrol's plant walk (1610) goes only to a pot it is replanting, so that is how a replant is told apart.</summary>
     private static void NoteReplant(long __0, int __2)
     {
@@ -100,7 +83,7 @@ internal static class TendHooks
         }
         catch (Exception ex)
         {
-            ReportOnce("replant note", ex);
+            _hooks?.Fail("noting a replant walk, the game's own screen is used", ex);
         }
     }
 
@@ -133,7 +116,7 @@ internal static class TendHooks
         }
         catch (Exception ex)
         {
-            ReportOnce("replant", ex);
+            _hooks?.Fail("replanting from the preset, the game's own screen is used", ex);
 
             return true;
         }
@@ -154,10 +137,5 @@ internal static class TendHooks
         }
 
         foreach (var potId in old) ReplantSentAt.Remove(potId);
-    }
-
-    private static void ReportOnce(string what, Exception ex)
-    {
-        if (ReportedFailures.Add(what)) _log($"{what} failed, the game's own screen is used (reported once): {ex}");
     }
 }

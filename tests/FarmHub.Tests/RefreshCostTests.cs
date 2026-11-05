@@ -27,57 +27,6 @@ public class RefreshCostTests
         game.World with { ShowIds = game.Pots.ToDictionary(pot => pot.Id, pot => 900 + pot.Id), Stamina = 40f, ChoreCost = 3 };
 
     [Fact]
-    public void A_sliced_job_runs_one_step_a_slice_when_each_slice_is_spent_and_still_finishes()
-    {
-        var ran = new List<int>();
-        var job = new SlicedJob(Steps(ran, 5));
-        var slices = 1;
-
-        while (!job.Advance(() => true)) slices++;
-
-        Assert.Equal(new[] { 0, 1, 2, 3, 4 }, ran);
-        // Five slices of one step each, then one that finds the job over.
-        Assert.Equal(6, slices);
-        Assert.True(job.IsDone);
-    }
-
-    [Fact]
-    public void A_sliced_job_with_time_to_spare_runs_whole_and_a_waiting_step_holds_the_rest_for_the_next_slice()
-    {
-        var whole = new List<int>();
-
-        Assert.True(new SlicedJob(Steps(whole, 4)).Advance(() => false));
-        Assert.Equal(4, whole.Count);
-
-        var ran = new List<string>();
-        var job = new SlicedJob(Waits(ran));
-
-        Assert.False(job.Advance(() => false));
-        Assert.Equal(new[] { "start" }, ran);
-        Assert.True(job.Advance(() => false));
-        Assert.Equal(new[] { "start", "after the wait" }, ran);
-    }
-
-    private static IEnumerable<bool> Steps(List<int> ran, int count)
-    {
-        for (var i = 0; i < count; i++)
-        {
-            ran.Add(i);
-
-            yield return true;
-        }
-    }
-
-    private static IEnumerable<bool> Waits(List<string> ran)
-    {
-        ran.Add("start");
-
-        yield return false;
-
-        ran.Add("after the wait");
-    }
-
-    [Fact]
     public void Two_reads_of_the_same_home_print_the_same_even_with_the_stock_in_another_order()
     {
         var first = Seen(Home());

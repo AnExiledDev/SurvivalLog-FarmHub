@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using ExiledToolkit;
+using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
+using ExiledToolkit.Web;
 using FarmHub.Core;
 using UnityEngine;
 
@@ -20,11 +23,15 @@ internal sealed class FarmSession
     private const float SowRetrySeconds = 0.5f;
     private const int SowTries = 6;
 
+    /// <summary>The name the window holds the game's hotkeys and clicks under in Exiled's Toolkit.</summary>
+    private const string WindowName = "FarmHub.window";
+
     private static readonly long StartedAt = Stopwatch.GetTimestamp();
 
     private readonly GameFarm _game;
     private readonly ReadDone _readDone;
-    private readonly WebPage _page;
+    private readonly FarmPage _page;
+    private readonly PageMailbox _messages = PageInbox.Listen(PageCommand.Prefix);
     private readonly WebKeyboard _keyboard = new();
     private readonly PresetFileOnDisk _file;
     private readonly Action<int> _saveRotWarn;
@@ -59,7 +66,7 @@ internal sealed class FarmSession
     private FarmRead? _lastRead;
     private FarmWorld? _lastWorld;
 
-    public FarmSession(GameFarm game, WebPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
+    public FarmSession(GameFarm game, FarmPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
     {
         _game = game;
         _readDone = new ReadDone(game);
@@ -69,7 +76,7 @@ internal sealed class FarmSession
         _saveRobots = saveRobots;
         _saveFromPresets = saveFromPresets;
         _log = log;
-        _isPanelKeyDown = () => Input.GetKeyDown(_panelKey) && InputGate.IsShiftHeld() == _isPanelKeyShifted;
+        _isPanelKeyDown = () => Input.GetKeyDown(_panelKey) && GameKeys.IsShiftHeld() == _isPanelKeyShifted;
         TendHooks.CanSow = CanSow;
     }
 
@@ -97,7 +104,7 @@ internal sealed class FarmSession
         _panelKey = panelKey;
         _isPanelKeyShifted = isPanelKeyShifted;
         _keyName = panelKey == KeyCode.None ? "" : (isPanelKeyShifted ? "Shift+" : "") + panelKey;
-        InputGate.UsePanelKey(panelKey, isPanelKeyShifted);
+        GameKeys.UsePanelKey(panelKey, isPanelKeyShifted);
         _rotWarnHours = rotWarnHours;
         _isKeepingRobotsStocked = isKeepingRobotsStocked;
         _isTendFromPresets = isTendFromPresets;
@@ -116,13 +123,13 @@ internal sealed class FarmSession
         // The script check is its own small call to the web view, so it waits for a frame with no refresh work.
         if (_phase == Phase.Idle) _page.KeepInstalled(now);
 
-        while (PageMessages.TryTake(out var command)) HandleSafely(command);
+        TakeMessages();
 
         TakeTendHooks(now);
 
         // One question to Unity on the frames no key went down, which is nearly all of them. A key typed into one of the
         // game's own text boxes (the item search) is text, not the panel key.
-        if (!_keyboard.IsClaimed && !InputGate.IsGameTyping && Input.anyKeyDown)
+        if (!_keyboard.IsClaimed && !GameKeys.IsGameTyping && Input.anyKeyDown)
         {
             if (Hotkey.Fires(_panelKey != KeyCode.None, _isPanelKeyDown, IsTypingAnywhere))
             {
@@ -182,6 +189,15 @@ internal sealed class FarmSession
                 if (now >= _nextAutoAt) RunAuto(now);
 
                 return;
+        }
+    }
+
+    /// <summary>The page's messages since the last frame, in the order sent; one the plugin cannot read is dropped.</summary>
+    private void TakeMessages()
+    {
+        while (_messages.TryTake(out var message))
+        {
+            if (PageCommand.Parse(message) is { } command) HandleSafely(command);
         }
     }
 
@@ -454,7 +470,7 @@ internal sealed class FarmSession
         }
 
         _isOpen = true;
-        InputGate.PanelOpened();
+        InputGate.Opened(WindowName);
         Show(read, isOpening: true);
         _log("window opened");
         RefreshNow();
@@ -466,7 +482,7 @@ internal sealed class FarmSession
 
         _isOpen = false;
         _keyboard.Release();
-        InputGate.PanelClosed();
+        InputGate.Closed(WindowName);
         _page.Close();
     }
 

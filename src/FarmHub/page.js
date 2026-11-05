@@ -1,7 +1,7 @@
 // Farm Hub's web half. Runs in Root.html, the document every game page iframe sits in. Draws the Farm Hub window over
 // all of them, styled like the game's own panels, and puts a plant button with a count badge in the HUD's tool column
-// (bottom left, above the phone and bag buttons), built like the game's own buttons there. Talks to the plugin through
-// vuplex.postMessage("slmod|farmhub|<verb>") and is driven by window.__slfarmhub.
+// (bottom left, above the phone and bag buttons) through Exiled's Toolkit's page API. Talks to the plugin with
+// "slmod|farmhub|<verb>" messages through the same API and is driven by window.__slfarmhub.
 (function () {
   if (window.__slfarmhub) return;
 
@@ -9,7 +9,7 @@
   var HUD_CLASS = 'fh-hud-btn';
   // Farm Hub's place in the HUD's tool column when Exiled's Toolkit lays it out in columns of four.
   var DOCK_ORDER = '30';
-  var HUD_STYLE_ID = 'fh-hud-style';
+  var HUD_PAGE = /CoreUI1\.html/;
   var BUSY_TIMEOUT_MS = 5000;
   var MAX_ADD = 30;
   var MAX_KEEP = 99;
@@ -272,7 +272,6 @@
   var shownShape = '';
   var isBusy = false;
   var busyTimer = 0;
-  var hasReportedPageAccess = false;
   var hasReportedHudPlaced = false;
   // Bumped when the catalog or the words change, so nodes drawn from the old ones are drawn again.
   var catSeq = 0;
@@ -312,10 +311,9 @@
     return node;
   }
 
+  // Through the Toolkit's bridge. Nothing goes before its page API is there; the page says it is ready once it is.
   function send(message) {
-    try {
-      if (window.vuplex) window.vuplex.postMessage(PREFIX + message);
-    } catch (e) {}
+    if (etk) etk.send(PREFIX, message);
   }
 
   // One press at a time: a double click would otherwise ask twice. Every press is answered by a status line, which
@@ -621,14 +619,10 @@
     if (waiting.length > 32) waiting.shift();
   }
 
-  // The style outlives a lost window root, so a rebuild must not stack another copy of it.
+  // One copy, which outlives a lost window root. A window drawn before the Toolkit's page API is there gets it when
+  // the API arrives.
   function addStyle() {
-    if (document.getElementById('fh-style')) return;
-
-    var style = el('style');
-    style.id = 'fh-style';
-    style.textContent = CSS;
-    document.head.appendChild(style);
+    if (etk) etk.addStyle(document, 'fh-style', CSS);
   }
 
   function onClick(e) {
@@ -2165,7 +2159,7 @@
 
     if (ui && state.isOpen) renderKeys();
 
-    patchPagesSafely();
+    refreshHud();
   }
 
   // The number on the HUD button and the Pots tab: pots with a chore waiting and empty pots a press of Plant would fill.
@@ -2174,196 +2168,90 @@
 
     if (ui && state.isOpen) renderTabs();
 
-    patchPagesSafely();
+    refreshHud();
   }
 
   // ---------- HUD button ----------
 
-  var HUD_CSS = [
-    '.fh-hud-btn{position:relative}',
-    '.fh-hud-btn .fh-hud-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e53935;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.6)}'
-  ].join('\n');
+  // The Toolkit's page API (window.ExiledToolkit). The game can run its script after this one, so this stays null
+  // until it has; the HUD button, the plant panel and the messages to the plugin start then.
+  var etk = null;
+  // The Farm Hub button in the HUD's tool column. The Toolkit keeps it there and writes changes into it in place.
+  var hudButton = null;
+  // What the button was last told, so it is told again only when something changed.
+  var shownHud = { isLive: null, key: null, badge: null, words: null };
+  // The Toolkit's check of the HUD page, which hands that page to patchHud.
+  var hudWatch = null;
 
-  // The HUD frame and every node placed in its document. Kept while that frame is still in the page with the same
-  // document, so a poll that finds nothing changed searches nothing; a new HUD document gets a new record.
+  // The HUD frame and every node placed in its document. Kept while the Toolkit hands over the same document, so a
+  // check that finds nothing changed searches nothing; a new HUD document gets a new record.
   var hudAt = null;
 
-  // The HUD is a same-origin iframe, so its document can be reached from here; polled because the game creates and
-  // drops that iframe whenever it likes.
-  function patchPages() {
-    // Outside a game nothing is shown, so there is nothing to look for unless something placed earlier must go.
-    if (!state.isLive && !(hudAt && (hudAt.button || hudAt.placed))) return;
+  // Runs once the Toolkit's page API is there: at once when its script ran first, else when it runs.
+  function startWithToolkit(api) {
+    etk = api;
 
-    var page = hudPageNow();
+    // A window drawn before the Toolkit arrived gets its style now.
+    if (ui) addStyle();
 
-    if (!page) return;
-
-    placeHudButton(page);
-    patchPlantPanel(page);
+    hudButton = etk.addHudButton({
+      id: HUD_CLASS, order: DOCK_ORDER, icon: SPROUT_PATH, title: 'Farm Hub', badgeClass: 'fh-hud-badge', shown: false,
+      onClick: function () { send('toggle'); },
+      onPlace: noteHudPlaced
+    });
+    showHudState();
+    hudWatch = etk.watchPages(HUD_PAGE, patchHud, { everyCheck: true });
+    send('ready');
   }
 
-  function patchPagesSafely() {
-    try {
-      patchPages();
-    } catch (e) {}
+  // What the plugin sent changed what the HUD shows: the button hears it at once, and the plant panel is patched now
+  // rather than at the next check.
+  function refreshHud() {
+    showHudState();
+
+    if (hudWatch) hudWatch.refresh();
   }
 
-  function hudPageNow() {
-    if (hudAt && isSameHud(hudAt)) return hudAt;
+  // The HUD page, handed over at every check. Outside a game nothing is shown, so there is nothing to look for unless
+  // something placed earlier must go.
+  function patchHud(doc, frame) {
+    showHudState();
 
-    hudAt = null;
+    if (!state.isLive && !(hudAt && hudAt.placed)) return;
 
-    var frames = document.querySelectorAll('iframe');
+    if (!hudAt || hudAt.doc !== doc) hudAt = newHudPage(frame, doc);
 
-    for (var i = 0; i < frames.length; i++) {
-      var src = frames[i].src || '';
-
-      if (!/CoreUI1\.html/.test(src)) continue;
-
-      var doc = null;
-
-      try {
-        doc = frames[i].contentDocument;
-      } catch (e) {}
-
-      if (!doc) {
-        if (!hasReportedPageAccess) send('diag|cannot reach the HUD document (root ' + location.protocol + ', iframe ' + src + ')');
-        hasReportedPageAccess = true;
-        continue;
-      }
-
-      hudAt = newHudPage(frames[i], doc);
-
-      return hudAt;
-    }
-
-    return null;
-  }
-
-  function isSameHud(page) {
-    try {
-      return page.frame.isConnected && page.frame.contentDocument === page.doc;
-    } catch (e) {
-      return false;
-    }
+    patchPlantPanel(hudAt);
   }
 
   // Anything of ours already in the document is taken out once, so the nodes in the record are the only ones there.
+  // The Toolkit takes out a button an older copy of this script left.
   function newHudPage(frame, doc) {
-    ['.' + HUD_CLASS, '.fh-hudadd', '#' + FILTER_STYLE_ID].forEach(function (selector) {
+    ['.fh-hudadd', '#' + FILTER_STYLE_ID].forEach(function (selector) {
       doc.querySelectorAll(selector).forEach(function (node) { node.remove(); });
     });
 
     return {
-      frame: frame, doc: doc, column: null, button: null, hudTip: null, tipTitle: null, count: null, tipKey: null, tipBody: null,
-      shownBadge: -1, shownKey: null, shownWords: -1, app: null, row: null, replant: null, box: null, boxInput: null, tip: null,
-      plan: null, list: null, strip: null, empties: null, more: null, filter: null, rows: [], growing: 0, firstGrowing: null,
-      placed: false, hasPanelStyle: false
+      frame: frame, doc: doc, app: null, row: null, replant: null, box: null, boxInput: null, tip: null, plan: null, list: null,
+      strip: null, empties: null, more: null, filter: null, rows: [], growing: 0, firstGrowing: null, placed: false, hasPanelStyle: false
     };
   }
 
-  // First in the tool column: the column is anchored at the bottom, so the first child sits on top and the game's own
-  // buttons do not move. The column hides itself in build mode, and the button with it. The button is built once and
-  // its count, key and tip are written in place.
-  function placeHudButton(page) {
-    var column = null;
+  // Shown only in a game, with the count, the key and the tip's words; each is written only when it changed.
+  function showHudState() {
+    if (!hudButton) return;
 
-    if (state.isLive) {
-      if (!page.column || !page.column.isConnected) page.column = page.doc.querySelector('.vertical-tools');
-
-      column = page.column;
-    }
-
-    if (!column) {
-      if (page.button) page.button.remove();
-
-      page.button = null;
-
-      return;
-    }
-
-    if (!page.button) {
-      addHudStyle(page.doc);
-      page.button = hudButton(page);
-    }
-
-    showHudState(page);
-
-    if (page.button.parentNode === column) return;
-
-    column.insertBefore(page.button, column.firstChild);
-
-    if (!hasReportedHudPlaced) send('diag|HUD button placed in the tool column');
-    hasReportedHudPlaced = true;
-  }
-
-  // The count, the key and the tip's words, each written only when it changed.
-  function showHudState(page) {
     var words = wordsKey();
 
-    if (page.shownBadge !== state.badge) {
-      page.shownBadge = state.badge;
+    if (shownHud.isLive === state.isLive && shownHud.key === state.key && shownHud.badge === state.badge && shownHud.words === words) return;
 
-      if (state.badge > 0) {
-        page.count.textContent = state.badge > 99 ? '99+' : String(state.badge);
-
-        if (page.count.parentNode !== page.button) page.button.insertBefore(page.count, page.hudTip);
-      } else {
-        page.count.remove();
-      }
-    }
-
-    if (page.shownKey !== state.key) {
-      page.shownKey = state.key;
-      page.tipKey.textContent = state.key;
-
-      if (!state.key) page.tipKey.remove();
-      else if (page.tipKey.parentNode !== page.tipTitle) page.tipTitle.appendChild(page.tipKey);
-    }
-
-    if (page.shownWords !== words) {
-      page.shownWords = words;
-      page.tipBody.textContent = say('tip');
-    }
+    shownHud = { isLive: state.isLive, key: state.key, badge: state.badge, words: words };
+    hudButton.update({ shown: state.isLive, key: state.key, badge: state.badge, tip: say('tip') });
   }
 
-  function addHudStyle(doc) {
-    if (doc.getElementById(HUD_STYLE_ID)) return;
-
-    var style = doc.createElement('style');
-    style.id = HUD_STYLE_ID;
-    style.textContent = HUD_CSS;
-    (doc.head || doc.body).appendChild(style);
-  }
-
-  // The same markup as the game's bag button: its classes, an svg icon, and the hover tip its stylesheet shows. The
-  // HUD page watches its body for new buttons and tells the game where they are, so a click on this one reaches it.
-  // The count badge and the key's keycap are made here and put in by showHudState while there is something to show.
-  function hudButton(page) {
-    var doc = page.doc;
-    var node = doc.createElement('button');
-
-    node.className = 'ui-btn icon-sq interactive-btn has-entry-tip ' + HUD_CLASS;
-    node.setAttribute('data-interactive', '');
-    node.setAttribute('data-etk-dock', DOCK_ORDER);
-    node.appendChild(sprout(doc));
-    page.count = make(doc, 'span', 'fh-hud-badge', '');
-    page.tipKey = make(doc, 'span', 'entry-tip-key', '');
-    page.tipTitle = make(doc, 'div', 'entry-tip-title', 'Farm Hub');
-    page.tipBody = make(doc, 'div', 'entry-tip-body', '');
-    page.hudTip = make(doc, 'div', 'entry-tip', '');
-    page.hudTip.appendChild(page.tipTitle);
-    page.hudTip.appendChild(page.tipBody);
-    node.appendChild(page.hudTip);
-    page.shownBadge = -1;
-    page.shownKey = null;
-    page.shownWords = -1;
-    node.addEventListener('click', function (e) {
-      e.stopPropagation();
-      send('toggle');
-    });
-
-    return node;
+  function noteHudPlaced() {
+    if (!hasReportedHudPlaced) send('diag|HUD button placed in the tool column');
+    hasReportedHudPlaced = true;
   }
 
   function sprout(doc) {
@@ -2466,7 +2354,7 @@
 
     hudPlanKey = planKey;
     hudEmptyKey = emptyKey;
-    patchPagesSafely();
+    refreshHud();
   }
 
   // The HUD page's Vue state, which holds the plant rows' ids in the order the rows are drawn, and whether the panel,
@@ -2520,7 +2408,7 @@
     page.placed = true;
 
     if (!page.hasPanelStyle) {
-      addPanelStyle(page.doc);
+      etk.addStyle(page.doc, PANEL_STYLE_ID, PANEL_CSS);
       page.hasPanelStyle = true;
     }
 
@@ -2805,7 +2693,7 @@
 
   function setShow(mode) {
     panelShow = mode;
-    patchPagesSafely();
+    refreshHud();
   }
 
   function setFilterStyle(page, isOn) {
@@ -3017,15 +2905,6 @@
     return String(location.href || '').replace(/[^\/]*([?#].*)?$/, '') + path;
   }
 
-  function addPanelStyle(doc) {
-    if (doc.getElementById(PANEL_STYLE_ID)) return;
-
-    var style = doc.createElement('style');
-    style.id = PANEL_STYLE_ID;
-    style.textContent = PANEL_CSS;
-    (doc.head || doc.body).appendChild(style);
-  }
-
   function make(doc, tag, className, words) {
     var node = doc.createElement(tag);
 
@@ -3035,8 +2914,6 @@
     return node;
   }
 
-  setInterval(patchPagesSafely, 400);
-
   window.__slfarmhub = { open: open, setData: setData, close: close, status: status, live: setLive, catalog: catalog, badge: setBadge, hud: hud };
-  send('ready');
+  (window.ExiledToolkitReady = window.ExiledToolkitReady || []).push(startWithToolkit);
 })();

@@ -19,7 +19,7 @@ Press the plant button in the tool column on the left of the screen to open it, 
 - **Rotting soon**: a ripe crop that will rot within 12 hours (you pick 6 to 48) is flagged and sorts to the top.
 - **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. Optionally, when a robot runs out of a seed, Farm Hub switches it to the next seed in its floor's preset so it keeps sowing.
 - **Stock**: the Planting presets tab shows the seeds and fertilizer you own and how many pots of each size they would fill.
-- **UI size**: with Exiled's Toolkit 0.10.0 or newer, its UI size setting (`UiScale`) draws the window bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size. With Toolkit 0.11.0 or newer, Farm Hub's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
+- **UI size**: Exiled's Toolkit's UI size setting (`UiScale`) draws the window bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size. Farm Hub's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
 
 Presets are kept in `BepInEx\config\farm-hub.json`, shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
@@ -27,9 +27,9 @@ Farm Hub does what Greenline does. Use one or the other, not both.
 
 ## Requirements
 
-- Survival Log 1.1.20151. Built for this version; a game update can break it until the mod is updated.
+- Survival Log 1.1.20719. Built for this version; a game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.12.0 or newer. Farm Hub does not load without it. It keeps Farm Hub's key quiet while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
+- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.19.0 or newer. Farm Hub does not load without it. It keeps Farm Hub's key quiet while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
 
 ## Install
 

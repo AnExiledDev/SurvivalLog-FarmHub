@@ -1,5 +1,5 @@
 // Farm Hub's web half. Runs in Root.html, the document every game page iframe sits in. Draws the Farm Hub window over
-// all of them, styled like the game's own panels, and puts a plant button with a count badge in the HUD's tool column
+// all of them, styled like the game's panels, and puts a plant button with a count badge in the HUD's tool column
 // (bottom left, above the phone and bag buttons) through Exiled's Toolkit's page API. Talks to the plugin with
 // "slmod|farmhub|<verb>" messages through the same API and is driven by window.__slfarmhub.
 (function () {
@@ -19,7 +19,7 @@
   var SVG_NS = 'http://www.w3.org/2000/svg';
   // A sprout: a stem with two leaves over a pot.
   var SPROUT_PATH = 'M11 21v-7.2C8.4 13.6 6 11.4 6 8c2.9 0 5 1.6 5 4.4V12h2v.4C13 9.6 15.1 8 18 8c0 3.4-2.4 5.6-5 5.8V21h-2zM6 18h12l-1 4H7l-1-4z';
-  // The game's own Tend Garden key, which Farm Hub leaves alone.
+  // The game's Tend Garden key, which Farm Hub leaves alone.
   var GAME_TEND_KEY = 'G';
   var TABS = ['pots', 'presets', 'robots', 'settings'];
   var TAB_WORD = { pots: 'tabPots', presets: 'tabPresets', robots: 'tabRobots', settings: 'tabSettings' };
@@ -2448,7 +2448,7 @@
     page.row = page.replant = page.box = page.boxInput = page.tip = page.plan = page.list = page.strip = page.empties = page.more = null;
   }
 
-  // The game's own rows, in order, from one walk of the list's children; the growing ones are counted on the way.
+  // The game's rows, in order, from one walk of the list's children; the growing ones are counted on the way.
   function readRows(page, list) {
     var rows = page.rows;
     var children = list.children;

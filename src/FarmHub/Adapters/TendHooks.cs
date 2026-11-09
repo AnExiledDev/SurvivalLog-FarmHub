@@ -10,7 +10,7 @@ namespace FarmHub.Adapters;
 /// <summary>
 /// Tend Garden from the presets. When the game's Replant box is on, its patrol sends a plant walk after each harvest,
 /// and that walk opens the game's plant screen at the pot; for a pot whose preset has a seed, the screen is skipped and
-/// the pot is sown from the preset instead. After the game's own patrol (the G key or the HUD button) the session also
+/// the pot is sown from the preset instead. After the game's patrol (the G key or the HUD button) the session also
 /// plants the empty pots and fertilizes the growing ones from their presets. Every hook fails soft, back to the game.
 /// Static because a Harmony patch has nowhere else to look; the game calls all three on the main thread.
 /// </summary>
@@ -58,7 +58,7 @@ internal static class TendHooks
         return taken;
     }
 
-    /// <summary>Whether the game's own Tend Garden ran since the last call.</summary>
+    /// <summary>Whether the game's Tend Garden ran since the last call.</summary>
     public static bool TakePatrol()
     {
         var isSeen = _isPatrolSeen;
@@ -83,7 +83,7 @@ internal static class TendHooks
         }
         catch (Exception ex)
         {
-            _hooks?.Fail("noting a replant walk, the game's own screen is used", ex);
+            _hooks?.Fail("noting a replant walk, the game's screen is used", ex);
         }
     }
 
@@ -116,7 +116,7 @@ internal static class TendHooks
         }
         catch (Exception ex)
         {
-            _hooks?.Fail("replanting from the preset, the game's own screen is used", ex);
+            _hooks?.Fail("replanting from the preset, the game's screen is used", ex);
 
             return true;
         }

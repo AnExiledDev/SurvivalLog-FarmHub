@@ -7,7 +7,7 @@ namespace FarmHub.Adapters;
 /// <summary>
 /// The two key checks only Farm Hub needs; Exiled's Toolkit holds the game's hotkeys and sends every click to the web
 /// UI while the window is open. The game's Tend Garden key ignores Shift, so Shift with the same key would fire both,
-/// and a key typed into one of the game's own text boxes (the item search) is text, not the panel key. Static because
+/// and a key typed into one of the game's text boxes (the item search) is text, not the panel key. Static because
 /// a Harmony patch has nowhere else to look.
 /// </summary>
 internal static class GameKeys
@@ -17,7 +17,7 @@ internal static class GameKeys
 
     public static void Apply(PatchKit hooks)
     {
-        hooks.Patch(typeof(GameKeys), typeof(HotKeyManager), "Update", postfix: nameof(NoteGameTyping), done: "the panel key waits while you type in the game's own text boxes", consequence: "typing the panel key in the game's item search may also open the window");
+        hooks.Patch(typeof(GameKeys), typeof(HotKeyManager), "Update", postfix: nameof(NoteGameTyping), done: "the panel key waits while you type in the game's text boxes", consequence: "typing the panel key in the game's item search may also open the window");
         hooks.Patch(typeof(GameKeys), typeof(HotKeyManager), "HandleHotKeyPlantPatrol", prefix: nameof(SkipTendGardenOnPanelKey), done: "Shift with the panel key opens the window without also sending Tend Garden", consequence: "Shift with the panel key may also send the game's Tend Garden");
     }
 

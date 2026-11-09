@@ -26,7 +26,7 @@ public enum PotState
     Poor,
 }
 
-/// <summary>What the player can ask a worker to do at a pot, each one of the game's own plant chores. Clear removes a withered crop, Uproot a poor one.</summary>
+/// <summary>What the player can ask a worker to do at a pot, each one of the game's plant chores. Clear removes a withered crop, Uproot a poor one.</summary>
 public enum TendAction
 {
     Harvest,
@@ -146,7 +146,7 @@ public interface IFarmGame
     /// <summary>Lines up one of the game's plant chores at the pot.</summary>
     bool Tend(long potId, TendAction action);
 
-    /// <summary>The game's own tend-everything patrol, as the HUD's plant button sends it.</summary>
+    /// <summary>The game's tend-everything patrol, as the HUD's plant button sends it.</summary>
     bool TendAll();
 
     /// <summary>Sets one sow tier of a planter robot: tier 0, 1 or 2, a seed item and a fertilizer item (0 for none).</summary>

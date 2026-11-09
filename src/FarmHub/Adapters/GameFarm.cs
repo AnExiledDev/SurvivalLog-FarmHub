@@ -12,7 +12,7 @@ using GameCore.HotUpdate.Battle.Logic;
 namespace FarmHub.Adapters;
 
 /// <summary>
-/// The game's side of every press. Pots are read the way the game's own plant HUD finds them; a press calls the same
+/// The game's side of every press. Pots are read the way the game's plant HUD finds them; a press calls the same
 /// handler the plant panel, the fertilizer picker, the chore buttons or the robot panel send their events to. Each call
 /// fails soft: an exception is logged once per kind of call and answered as a refusal.
 /// </summary>
@@ -360,7 +360,7 @@ internal sealed class GameFarm : IFarmGame
 
                     var found = new HashSet<int>();
 
-                    // The game's own check, once per crop, is the costly part of a read, so it is spread over steps.
+                    // The game's check, once per crop, is the costly part of a read, so it is spread over steps.
                     for (var crop = 0; crop < cropRows.Count; crop++)
                     {
                         if (!CheckCrop(furniture, cropRows[crop], found)) break;
@@ -608,7 +608,7 @@ internal sealed class GameFarm : IFarmGame
     }
 
     /// <summary>
-    /// One crop of an empty pot's suitability check, by the game's own test of the pot's light and temperature. False
+    /// One crop of an empty pot's suitability check, by the game's test of the pot's light and temperature. False
     /// when the test failed, which ends the pot's check with the crops found so far.
     /// </summary>
     private bool CheckCrop(Furniture furniture, Config_Plant crop, HashSet<int> unsuitable)

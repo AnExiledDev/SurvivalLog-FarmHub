@@ -9,7 +9,7 @@ using System.Text.Json;
 namespace FarmHub.Core;
 
 /// <summary>
-/// The JSON for the additions to the game's own plant panel in the HUD: a second line for each of its rows (keyed by
+/// The JSON for the additions to the game's plant panel in the HUD: a second line for each of its rows (keyed by
 /// the pot's HUD id), the empty pots it does not list, and the Tend Garden plan for the patrol button's tip. Items are
 /// ids the page names from the catalog (CatalogView).
 /// </summary>

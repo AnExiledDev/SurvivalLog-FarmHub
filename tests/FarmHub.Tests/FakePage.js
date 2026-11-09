@@ -419,7 +419,7 @@ function openPlantPanel(rows, isReplantOn, hasReplant) {
   return panel;
 }
 
-// The game's own plant rows, ours left out.
+// The game's plant rows, ours left out.
 function gameRowsNow() {
   return hudPage().querySelectorAll('.mature-item-row').filter(function (n) { return !n.classList.contains('fh-hudadd'); });
 }

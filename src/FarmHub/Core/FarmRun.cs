@@ -41,7 +41,7 @@ public abstract record FarmOutcome
 
     public sealed record NothingToTend(string Pot) : FarmOutcome;
 
-    /// <summary>After the game's own Tend Garden: the empty pots planted and growing pots fertilized from presets.</summary>
+    /// <summary>After the game's Tend Garden: the empty pots planted and growing pots fertilized from presets.</summary>
     public sealed record FromPresets(int PlantedCount, int FertilizedCount) : FarmOutcome;
 
     public sealed record Refused(string Pot) : FarmOutcome;
@@ -104,7 +104,7 @@ public static class FarmRun
     });
 
     /// <summary>
-    /// The game's own Tend Garden (harvest and chores, budgeted by stamina), then the empty pots planted and the growing
+    /// The game's Tend Garden (harvest and chores, budgeted by stamina), then the empty pots planted and the growing
     /// pots fertilized from their presets. A game that refuses Tend Garden still gets the planting and fertilizer.
     /// </summary>
     public static FarmOutcome TendAll(IFarmGame game, PresetBook book) => WithWorld(game, world =>

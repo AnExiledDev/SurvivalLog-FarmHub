@@ -174,7 +174,7 @@
     autoNote: 'Plants an empty pot from this preset on its own, as if you pressed Plant.',
     usedFor: 'Used for',
     useAll: 'Everywhere',
-    usedNote: 'A pot uses the preset picked for it first, then its room\'s, then its floor\'s, then the one used everywhere.',
+    usedNote: 'A pot uses the preset chosen under "This pot" first, then its room\'s, then its floor\'s, then the one used everywhere.',
     willDo: 'What this preset does',
     plantingsLeft: '{0} plantings left',
     ok: 'OK',

@@ -53,7 +53,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.7 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.8 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
 
 ## Known issues
 

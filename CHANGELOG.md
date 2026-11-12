@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.8
+
+- Clearer wording in the window.
+- Made for Survival Log 1.1.20719.
+
 ## 0.5.7
 
 - Clearer wording in the window, the messages and the settings.

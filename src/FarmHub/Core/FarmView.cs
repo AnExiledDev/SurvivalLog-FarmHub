@@ -183,7 +183,7 @@ public static class FarmView
         json.WriteEndObject();
     }
 
-    /// <summary>The preset a pot follows and where it comes from: the pot's own choice, its room, its floor, or everywhere.</summary>
+    /// <summary>The preset a pot follows and where it comes from: the preset set for that pot, its room, its floor, or everywhere.</summary>
     private static (FarmPreset? Preset, string From) PresetOf(PresetBook book, string? saveKey, Pot pot)
     {
         if (book.Find(book.OverrideFor(saveKey, pot.Id)) is { } own) return (own, "pot");

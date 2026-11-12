@@ -203,7 +203,7 @@ public static class Texts
         ("autoNote", new("Plants an empty pot from this preset on its own, as if you pressed Plant.", "会像按下「种植」一样，自动按此预设为空盆种植。")),
         ("usedFor", new("Used for", "用于")),
         ("useAll", new("Everywhere", "所有地方")),
-        ("usedNote", new("A pot uses the preset picked for it first, then its room's, then its floor's, then the one used everywhere.", "种植盆优先使用为它单独选择的预设，其次是所在房间、所在楼层，最后是用于所有地方的预设。")),
+        ("usedNote", new("A pot uses the preset chosen under \"This pot\" first, then its room's, then its floor's, then the one used everywhere.", "种植盆先用「这个种植盆」中选的预设，其次是所在房间、所在楼层，最后是用于所有地方的预设。")),
         ("willDo", new("What this preset does", "此预设会怎样种植")),
         ("plantingsLeft", new("{0} plantings left", "还能种 {0} 次")),
         ("ok", new("OK", "充足")),

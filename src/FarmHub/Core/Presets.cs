@@ -39,7 +39,7 @@ public sealed record FarmPreset(
 
 /// <summary>
 /// Every preset, where each one is used, and the per-pot choices of each save. A use is "all", a floor ("f" and its
-/// level) or a room ("a" and its area id). A pot takes its own choice, else its room's, else its floor's, else "all".
+/// level) or a room ("a" and its area id). A pot takes the preset set for that pot, else its room's, else its floor's, else "all".
 /// </summary>
 public sealed record PresetBook(
     IReadOnlyList<FarmPreset> Presets,

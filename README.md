@@ -1,6 +1,6 @@
 # Farm Hub
 
-Every pot at home in one window: what grows in it, when it is ripe, when it rots, what it needs and what it gets planted with next. Plant, fertilize and tend everything with one press each, from planting presets with fallbacks, and keep your planter robots sowing.
+Every pot at home in one window: what grows in it, when it is ripe, when it rots, what it needs and what it gets planted with next. Plant, fertilize and tend every pot with one press each. Planting presets pick the seeds and fertilizer, with backups for when one runs out, and your planter robots can plant from them too.
 
 Press the plant button in the tool column on the left of the screen to open it, or set a key for it (`PanelKey`, unbound by default). The button shows how many pots have a chore waiting or could be planted now.
 
@@ -11,25 +11,25 @@ Press the plant button in the tool column on the left of the screen to open it, 
 - **Tend all, Plant and Fertilize**: Tend all sends the game's Tend Garden (harvest, clear, weed, water), then plants every empty pot from its preset and fertilizes every growing pot that has none. Plant and Fertilize do just their part. Each pot can also be handled on its own.
 - **More in the game's plant list**: the plant list in the HUD shows each pot's room and what it needs, the empty pots with the seed they would get (click one to plant it), and a Needs you / All switch. The Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take.
 - **Tend Garden from your presets**: with the game's Replant box on, Tend Garden replants a harvested pot from its preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones. Turn it off with the "from presets" box next to Replant.
-- **Planting presets with fallbacks**: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back (keep at least 4 wheat seeds, say). Then an ordered list of fertilizers, the same way.
+- **Planting presets with backups**: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep some back (keep at least 4 wheat seeds, say). Fertilizers get an ordered list too, and work the same way.
 - **Fertilizer per crop**: a crop can have its own fertilizer order (watermelon always gets the best one). When its list runs out it either uses the preset's order or gets none, your choice per crop.
 - **Skip crops a pot cannot grow**: a crop the pot's light or temperature cannot grow is skipped and the next seed is used.
-- **Per pot, room or floor**: a preset can be used everywhere, on a floor, or in a room, and any pot can have one picked just for it. The most specific one wins. A preset picked for a pot is kept per save.
+- **Per pot, room or floor**: a preset can be used everywhere, on a floor, or in a room, and any pot can have its own. A pot uses its own preset first, then its room's, then its floor's, then the one used everywhere. A pot's own preset is kept per save.
 - **Auto replant**: a preset can plant its empty pots by itself, as if you pressed Plant.
-- **Rotting soon**: a ripe crop that will rot within 12 hours (you pick 6 to 48) is marked and moves to the top.
-- **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. A pot size with no seed set plants the seeds listed for that size in the preset for the robot's floor, and the Robots tab shows which ones. Turn on Keep robots stocked, and a seed you picked switches to the next one in that preset when it runs out.
+- **Rotting soon**: a ripe crop that is close to rotting is marked and moves to the top. You set how close in the Settings tab, 12 hours by default.
+- **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. When a pot size has no seed set, the robot plants the seeds listed for that size in its floor's preset, and the Robots tab shows which ones. With Keep robots stocked on, a seed you picked switches to the next one in that preset when it runs out.
 - **Stock**: the Planting presets tab shows the seeds and fertilizer you own and how many pots of each size they would fill.
 - **UI size**: Exiled's Toolkit's UI size setting (`UiScale`) draws the window bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size. Farm Hub's `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
 
 Presets are kept in `BepInEx\config\farm-hub.json`, shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
-Farm Hub does what Greenline does. Use one or the other, not both.
+Farm Hub does what Greenline does, so install one or the other.
 
 ## Requirements
 
 - Survival Log 1.1.20719. Built for this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
-- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.19.0 or newer. Farm Hub does not load without it. It keeps Farm Hub's key quiet while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
+- [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.19.0 or newer. Farm Hub does not load without it. It stops Farm Hub's key from firing while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
 - Optional: [Mod Manager](https://www.nexusmods.com/survivallog/mods/73). With it, you can change every setting in game on its Mods screen and see what each one does, without opening the config file.
 
 ## Install
@@ -53,7 +53,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.6 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.7 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
 
 ## Known issues
 

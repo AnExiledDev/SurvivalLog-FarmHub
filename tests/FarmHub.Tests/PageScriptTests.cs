@@ -383,7 +383,7 @@ public class PageScriptTests
 
         var notes = page.Text("panel().querySelectorAll('.fh-tnote').map(function (n) { return n.textContent; }).join('|')");
 
-        Assert.StartsWith("Out of the seeds for this pot size in preset Preset p1: Tomato, Wheat|You picked this seed, so the preset's seeds are not used here.", notes);
+        Assert.StartsWith("Preset Preset p1 is out of seeds for this pot size: Tomato, Wheat|You picked this seed, so the robot doesn't use the preset's seeds for this pot size.", notes);
     }
 
     // A seed the player picked is replaced with Seeds by pot size, which brings the preset's fertilizer, so no

@@ -22,7 +22,7 @@ public class FarmRunTests
         var outcome = FarmRun.Plant(game, WheatEverywhere(), null);
 
         Assert.Equal(new long[] { 2 }, game.Planted.Select(p => p.PotId));
-        Assert.Equal("Planting 1 pot. 1 had no seed left in their preset.", Say(outcome));
+        Assert.Equal("Planting 1 pot. Pots with no seed left in their preset: 1.", Say(outcome));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class FarmRunTests
 
         game.Pots.AddRange(new[] { P(1), P(2) });
 
-        Assert.Equal("Planting 1 pot. The game refused 1.", Say(FarmRun.Plant(game, WheatEverywhere(), null)));
+        Assert.Equal("Planting 1 pot. Pots the game refused: 1.", Say(FarmRun.Plant(game, WheatEverywhere(), null)));
         Assert.Equal(new long[] { 2 }, game.Planted.Select(p => p.PotId));
     }
 

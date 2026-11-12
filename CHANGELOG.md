@@ -1,17 +1,23 @@
 # Changelog
 
+## 0.5.7
+
+- Clearer wording in the window, the messages and the settings.
+- Made for Survival Log 1.1.20719.
+
 ## 0.5.6
 
-- A planter robot pot size with no seed set now plants the seeds listed for that pot size in the preset for the robot's floor, in order, with the preset's fertilizer. The Robots tab shows which seeds it uses.
-- In the Robots tab's seed editor, pick "Seeds by pot size" to hand a pot size back to the preset.
-- The Robots tab says when a pot size has run out of the preset's seeds, and a seed you picked yourself says how to go back to the preset.
+- When a planter robot has no seed set for a pot size, it now plants the seeds listed for that pot size in its floor's preset, in order, with the preset's fertilizer. The Robots tab shows which seeds it uses.
+- To have a robot use the preset's seeds again, press Change in the Robots tab and pick "Seeds by pot size".
+- The Robots tab now says when a pot size has run out of the preset's seeds.
+- Under a seed you picked yourself, the Robots tab now says how to switch back to the preset's seeds.
 - "Keep robots stocked" now only switches seeds you picked yourself.
 - Clearer wording in the window and the settings.
 - Made for Survival Log 1.1.20719.
 
 ## 0.5.5
 
-- Now uses Exiled's Toolkit for its shared parts, so it needs Exiled's Toolkit 0.19.0 or newer.
+- Now uses Exiled's Toolkit for code it shares with other mods, so it needs Exiled's Toolkit 0.19.0 or newer.
 - Made for Survival Log 1.1.20719.
 
 ## 0.5.4
@@ -64,12 +70,14 @@
 
 ## 0.4.1
 
-- Less stutter: the farm read skips furniture that is not a pot sooner, rechecks one empty pot's light and warmth at a time, and the auto replant waits a frame instead of running with the farm read.
+- Less stutter while Farm Hub checks your pots and while auto replant runs.
+
+## 0.4.0
 
 - The game's plant list in the HUD shows more: each pot's room and what it needs (rots in how long, what it gets replanted with, or the chore or fertilizer it waits for), the empty pots with the seed they would get (click one to plant it), a Needs you / All switch that folds away most of the growing pots, and a link to the Farm Hub window.
 - The game's Tend Garden tip lists the chores the next Tend Garden will do and the stamina they take, and warns when your stamina is short or a preset has no seed left.
 - Tend Garden can work from your presets: with the game's Replant box on, a harvested pot is replanted from its preset instead of opening the plant screen, and after each Tend Garden the empty pots are planted and the growing ones fertilized from their presets. Turn it on or off with the new "from presets" box next to Replant, or the new TendFromPresets setting (on by default). A pot whose preset has no seed left opens the plant screen as before.
-- The HUD button's count and the window refresh every 2 seconds while the window is closed, so the plant list stays current.
+- While the window is closed, the HUD button's count and the plant list now update every 2 seconds.
 
 ## 0.3.0
 
@@ -83,13 +91,12 @@
 
 ## 0.2.0
 
-- The window is much faster: a refresh that only moves the clocks updates the times in place instead of rebuilding the window, picking or checking a pot no longer redraws the list, and words are sent to the window once.
+- The window is much faster: a refresh that only moves the clocks updates the times in place instead of rebuilding the window, and picking or checking a pot no longer redraws the list.
 - Pots: filter by state, crop or room from the side list, group by room, crop or state, sort by urgency, ripeness or name, and do a pot's next chore straight from its card.
 - With no pot picked, the right side lists every pot waiting on you, soonest first. A picked pot shows its timing, the seeds its next planting will try in order, and its preset.
 - Planting presets: seeds are set per pot size in three columns, with the next seed marked, an add-seed picker per size, and a panel that says what the preset will do with the seeds you own.
 - Robots are shown side by side. The forecast shows the next 48 hours on a timeline.
 - Cleaner layout: rooms, grouping and sorting sit above the crop list, a card leaves out the preset its room header already names, long seed and fertilizer names no longer clip, and forecast entries no longer overlap.
-
 - After a game update, Mod Manager can tell you if this mod may need an update.
 
 ## 0.1.1

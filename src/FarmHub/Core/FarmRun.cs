@@ -51,7 +51,7 @@ public abstract record FarmOutcome
     public sealed record RobotTierSet(string Robot) : FarmOutcome;
 
     /// <summary>The auto pass: pots replanted, and robot tiers moved to another seed.</summary>
-    public sealed record AutoDone(int PlantedCount, int RobotTiers) : FarmOutcome;
+    public sealed record AutoDone(int PlantedCount, int RobotTiers, int RobotTiersEmptied = 0) : FarmOutcome;
 }
 
 /// <summary>The presses: plant, fertilize and tend, each read fresh from the game and each failing soft through the port.</summary>
@@ -163,9 +163,11 @@ public static class FarmRun
         var fills = Picks.RobotFills(world, book, filled);
         var switches = isKeepingRobotsStocked ? Picks.RobotSwitches(world, book, filled) : Array.Empty<TierSwitch>();
         var planted = PlantWhere(game, book, world, pot => IsAutoReplanted(world, book, pot, now, retryAt), failed => retryAt[failed] = now + RetrySeconds);
-        var robotTiers = fills.Count(fill => SetFilledTier(game, fill, filled)) + switches.Count(change => game.SetRobotTier(change.RobotId, change.Tier, change.SeedId, change.FertId));
+        var setFills = fills.Where(fill => SetFilledTier(game, fill, filled)).ToList();
+        var emptied = setFills.Count(fill => fill.SeedId == 0);
+        var robotTiers = setFills.Count - emptied + switches.Count(change => game.SetRobotTier(change.RobotId, change.Tier, change.SeedId, change.FertId));
 
-        return new FarmOutcome.AutoDone(planted is FarmOutcome.Planted done ? done.Count : 0, robotTiers);
+        return new FarmOutcome.AutoDone(planted is FarmOutcome.Planted done ? done.Count : 0, robotTiers, emptied);
     });
 
     private static bool SetFilledTier(IFarmGame game, TierSwitch fill, Dictionary<(long Robot, int Tier), int> filled)

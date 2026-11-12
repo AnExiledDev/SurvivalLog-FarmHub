@@ -37,6 +37,9 @@ public static class Texts
     public static readonly Counted RobotsSwitched = new(
         new("Robots: set a new seed for 1 pot size.", "机器人：已为 {0} 种盆大小换了种子。"),
         new("Robots: set a new seed for {0} pot sizes.", "机器人：已为 {0} 种盆大小换了种子。"));
+    public static readonly Counted RobotsOutOfSeeds = new(
+        new("Robots: out of seeds for 1 pot size.", "机器人：{0} 种盆大小的种子用完了。"),
+        new("Robots: out of seeds for {0} pot sizes.", "机器人：{0} 种盆大小的种子用完了。"));
     public static readonly Phrase RobotGone = new("That robot is gone.", "这台机器人已经不在了。");
     public static readonly Phrase RobotNumber = new("Robot {0}", "机器人 {0}");
     public static readonly Phrase RobotTierSet = new("{0}: seed saved.", "{0}：种子已保存。");

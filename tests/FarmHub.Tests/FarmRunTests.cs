@@ -144,6 +144,15 @@ public class FarmRunTests
         FarmRun.Auto(game, book, 1f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
 
         Assert.Equal(new RobotTier(2, WheatSeed, Basic), game.Robots[0].Tiers[0]);
+
+        // With every listed seed gone the tier is emptied, and the toast says so instead of claiming a new seed.
+        game.Stock[WheatSeed] = 0;
+
+        var emptied = FarmRun.Auto(game, book, 2f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+
+        Assert.True(FarmMessages.IsWorthShowing(emptied));
+        Assert.Equal("Robots: out of seeds for 1 pot size.", Say(emptied));
+        Assert.Equal(0, game.Robots[0].Tiers[0].SeedId);
     }
 
     // With Keep robots stocked off, a seed the player picked stays even when it runs out. Choosing Seeds by pot size

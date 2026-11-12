@@ -31,10 +31,10 @@ public static class FarmMessages
         _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "unknown farm outcome"),
     };
 
-    /// <summary>Whether the auto pass has anything worth telling the player: only pots it planted or robots it switched.</summary>
+    /// <summary>Whether the auto pass has anything worth telling the player: pots it planted, and robot tiers it switched or found out of seeds.</summary>
     public static bool IsWorthShowing(FarmOutcome outcome) => outcome switch
     {
-        FarmOutcome.AutoDone done => done.PlantedCount > 0 || done.RobotTiers > 0,
+        FarmOutcome.AutoDone done => done.PlantedCount > 0 || done.RobotTiers > 0 || done.RobotTiersEmptied > 0,
         FarmOutcome.FromPresets presets => presets.PlantedCount > 0 || presets.FertilizedCount > 0,
         _ => false,
     };
@@ -75,6 +75,7 @@ public static class FarmMessages
 
         if (done.PlantedCount > 0) parts.Add(Texts.AutoPlanted.Say(isChinese, done.PlantedCount));
         if (done.RobotTiers > 0) parts.Add(Texts.RobotsSwitched.Say(isChinese, done.RobotTiers));
+        if (done.RobotTiersEmptied > 0) parts.Add(Texts.RobotsOutOfSeeds.Say(isChinese, done.RobotTiersEmptied));
 
         return string.Join(" ", parts);
     }

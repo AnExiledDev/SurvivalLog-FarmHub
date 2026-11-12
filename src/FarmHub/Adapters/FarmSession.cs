@@ -40,6 +40,10 @@ internal sealed class FarmSession
     private readonly Action<string> _log;
     private readonly Dictionary<long, float> _retryAt = new();
     private readonly Dictionary<long, int> _sowTries = new();
+
+    /// <summary>Per robot and tier, the seed Farm Hub filled in from the pot-size seeds this session, or Picks.PlayerPicked.</summary>
+    private readonly Dictionary<(long Robot, int Tier), int> _filled = new();
+    private string? _filledSave;
     private readonly List<long> _sowing = new();
     private readonly ViewCache _views = new();
     private readonly Func<bool> _isPanelKeyDown;
@@ -170,6 +174,7 @@ internal sealed class FarmSession
 
                 _lastRead = read;
                 _lastWorld = (read as FarmRead.Ready)?.World;
+                ForgetFillsOfOtherSaves(_lastWorld);
                 SendLive(_lastWorld != null);
                 _phase = Phase.Hud;
                 return;
@@ -258,7 +263,7 @@ internal sealed class FarmSession
                 Press("tend all", () => FarmRun.TendAll(_game, Book()));
                 break;
             case PageCommand.RobotTier tier:
-                Press($"robot {tier.RobotId} tier {tier.Tier}", () => FarmRun.SetRobotTier(_game, tier.RobotId, tier.Tier, tier.SeedId, tier.FertId));
+                Press($"robot {tier.RobotId} tier {tier.Tier}", () => FarmRun.SetRobotTier(_game, tier.RobotId, tier.Tier, tier.SeedId, tier.FertId, _filled));
                 break;
             case PageCommand.Assign assign:
                 Keep(BookEdits.Assign(Book(), SaveSlot.CurrentKey(), assign, IsChinese));
@@ -511,7 +516,7 @@ internal sealed class FarmSession
         {
             case FarmRead.Ready ready:
                 SendCatalog(ready.World.Catalog);
-                view = _views.Window(ready.World, Book(), settings);
+                view = _views.Window(ready.World, Book(), settings, _filled);
                 break;
             case FarmRead.NotReady notReady:
                 view = FarmView.NotReady(Texts.NotReady.Say(IsChinese, notReady.Reason), settings);
@@ -541,10 +546,20 @@ internal sealed class FarmSession
         if (_page.Catalog(CatalogView.Write(catalog))) _sentCatalog = catalog;
     }
 
+    /// <summary>Who filled which robot tier is per save: robot ids from one save mean nothing in another.</summary>
+    private void ForgetFillsOfOtherSaves(FarmWorld? world)
+    {
+        if (world == null || world.SaveKey == _filledSave) return;
+
+        _filled.Clear();
+        _filledSave = world.SaveKey;
+    }
+
     /// <summary>
-    /// Replants the empty pots whose preset asks for it, and keeps robots stocked when the player turned that on, every
-    /// few seconds. It runs on the read just finished, and only when that read shows something for it to do. Only a pass
-    /// that did something says so, as a toast, so a quiet farm stays quiet.
+    /// Replants the empty pots whose preset asks for it, fills robot tiers that follow the pot-size seeds, and keeps
+    /// robots stocked when the player turned that on, every few seconds. It runs on the read just finished, and only
+    /// when that read shows something for it to do. Only a pass that did something says so, as a toast, so a quiet farm
+    /// stays quiet.
     /// </summary>
     private void RunAuto(float now)
     {
@@ -556,8 +571,11 @@ internal sealed class FarmSession
 
         var book = Book();
 
-        if (!_isKeepingRobotsStocked && !FarmRun.HasAutoReplant(book)) return;
-        if (!FarmRun.HasAutoWork(world, book, now, _retryAt, _isKeepingRobotsStocked)) return;
+        if (world.Robots.Count == 0 && !FarmRun.HasAutoReplant(book)) return;
+
+        Picks.NoteFollowing(world, book, _filled);
+
+        if (!FarmRun.HasAutoWork(world, book, now, _retryAt, _isKeepingRobotsStocked, _filled)) return;
 
         FarmOutcome outcome;
 
@@ -565,7 +583,7 @@ internal sealed class FarmSession
 
         try
         {
-            outcome = FarmRun.Auto(_readDone, book, now, _retryAt, _isKeepingRobotsStocked);
+            outcome = FarmRun.Auto(_readDone, book, now, _retryAt, _isKeepingRobotsStocked, _filled);
         }
         finally
         {

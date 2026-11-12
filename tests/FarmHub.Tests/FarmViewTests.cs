@@ -79,4 +79,21 @@ public class FarmViewTests
         Assert.Equal(("p2", "floor"), (Pot(view, 2).GetProperty("preset").GetString(), Pot(view, 2).GetProperty("from").GetString()));
         Assert.Equal(("p1", "pot"), (Pot(view, 3).GetProperty("preset").GetString(), Pot(view, 3).GetProperty("from").GetString()));
     }
+
+    // Small pots hold Wheat, the seed the preset picks now, but the player chose it, so only the empty tiers say they
+    // use the pot-size seeds. The robot names its floor's preset so the page can list those seeds.
+    [Fact]
+    public void A_robot_tier_with_no_seed_of_its_own_says_it_uses_the_pot_size_seeds()
+    {
+        var game = new FakeGame { Stock = { [WheatSeed] = 5 } };
+        var picked = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = Picks.PlayerPicked };
+
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, WheatSeed, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
+
+        var robot = JsonDocument.Parse(FarmView.Ready(game.World, WheatBook(), Settings, picked)).RootElement.GetProperty("robots")[0];
+        var follows = robot.GetProperty("tiers").EnumerateArray().Select(tier => tier.GetProperty("follow").GetBoolean());
+
+        Assert.Equal("p1", robot.GetProperty("preset").GetString());
+        Assert.Equal(new[] { false, true, true }, follows);
+    }
 }

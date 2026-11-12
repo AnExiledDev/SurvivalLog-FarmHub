@@ -103,7 +103,7 @@
     noPreset: 'No preset',
     plant: 'Plant',
     fertilize: 'Fertilize',
-    fromPot: 'This pot\'s own choice',
+    fromPot: 'Picked for this pot',
     fromRoom: 'From its room',
     fromFloor: 'From its floor',
     fromAll: 'From the preset used everywhere',
@@ -167,26 +167,26 @@
     never: 'Never fertilize',
     addCrop: '+ Add crop',
     skipUnsuitable: 'Skip crops the pot cannot grow',
-    skipNote: 'A seed whose crop needs more light or heat than the pot gives is passed over.',
+    skipNote: 'Seeds whose crop needs more light or heat than the pot gives are skipped.',
     fertilizeOn: 'Fertilize when planting',
     fertilizeNote: 'Uses the fertilizer order above.',
     autoReplant: 'Replant empty pots by themselves',
     autoNote: 'Plants an empty pot from this preset on its own, as if you pressed Plant.',
     usedFor: 'Used for',
     useAll: 'Everywhere',
-    usedNote: 'A pot uses its own choice, else its room\'s, else its floor\'s, else the one used everywhere.',
+    usedNote: 'A pot uses the preset picked for it first, then its room\'s, then its floor\'s, then the one used everywhere.',
     willDo: 'What it will do',
     plantingsLeft: '{0} plantings left',
     ok: 'OK',
     low: 'Low',
     out: 'Out',
-    planNote: 'Plantings left counts seeds above the keep counts. Two rounds for every pot is OK.',
+    planNote: 'Plantings left counts only the seeds above the keep counts. OK means you have enough to plant every pot twice.',
     nextBySize: 'Next crop for each size',
     nothingLeft: 'No seed left',
     seedOut: '{0}: not enough seed, skipped.',
     noPotsUse: 'No pot uses this preset yet.',
     keepStocked: 'Keep robots stocked',
-    keepNote: 'When a robot runs out of the seed for a pot size, switch it to the next seed in its floor\'s preset.',
+    keepNote: 'When a seed you picked for a robot runs out, switch it to the next seed in the preset for the robot\'s floor.',
     noRobots: 'No planter robots at home.',
     battery: 'Battery {0}%',
     working: 'Working',
@@ -194,11 +194,15 @@
     colSize: 'Size',
     colSeed: 'Seed now',
     noSeed: 'No seed',
+    sizeSeeds: 'Seeds by pot size',
+    sizeSeedsNote: 'The robot plants the seeds listed for this pot size in the preset for its floor, in that order, with the preset\'s fertilizer.',
+    followSeeds: 'Uses the seeds for this pot size from preset {0}: {1}',
+    followNone: 'Preset {0} has no seeds for this pot size, so the robot plants nothing here. Add some on the Planting presets tab.',
     change: 'Change',
     cancel: 'Cancel',
     seed: 'Seed',
     stockHead: 'Seeds and fertilizer',
-    stockNote: 'Per size: how many pots what you own would fill, after the keep counts.',
+    stockNote: 'How many pots of each size you can fill with what you have, not counting what you keep.',
     colItem: 'Item',
     colHave: 'Have',
     comingUp: 'Next 48 hours',
@@ -207,7 +211,7 @@
     rotWarnNote: 'Pots this close to rotting are marked red and counted on the plant button.',
     hotkey: 'Hotkey',
     keyOpen: '{0} opens and closes this window.',
-    keyNone: 'No key is set; use the plant button on the left of the screen.',
+    keyNone: 'No key is set. Use the plant button on the left of the screen.',
     presetFile: 'Presets are kept in BepInEx/config/farm-hub.json, shared by every save.',
     escClose: 'Esc to close',
     fNeeds: 'Needs you',
@@ -256,7 +260,7 @@
     hThenHead: 'Then, from your presets',
     hReplant: 'Replant',
     hPlantEmpty: 'Plant empty pots',
-    hShort: 'Not enough stamina for all of it; the rest waits.',
+    hShort: 'Not enough stamina for all of it. The rest waits.',
     hNoSeedFor: 'No seed left for {0}',
     hNoSeedMore: 'No seed left for {0} and {1} more',
     hIdle: 'Nothing to tend right now.'
@@ -546,6 +550,8 @@
     '.fh-tier.fh-thead{background:none;color:var(--t4);font-size:12px;padding:2px 10px}',
     '.fh-tcell{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;overflow:hidden}',
     '.fh-tedit{padding:10px 12px;margin-bottom:6px;border-radius:3px;border:1px solid rgba(255,200,58,.5);background:rgba(255,200,58,.05);display:flex;flex-direction:column;gap:6px}',
+    '.fh-tedit-fert{display:flex;flex-direction:column;gap:6px}',
+    '.fh-tnote{padding:0 10px 6px;margin-top:-2px;color:var(--t3);font-size:12px}',
     '.fh-row2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
     '.fh-icon{flex:none;display:flex;align-items:center;justify-content:center;border-radius:3px;background:rgba(0,0,0,.25);overflow:hidden;color:var(--t2);font-weight:600}',
     '.fh-icon img{width:100%;height:100%;object-fit:contain}',
@@ -1954,7 +1960,9 @@
 
       box.appendChild(tierRow(robot, tier, i));
 
-      if (isEditing) box.appendChild(tierEditor(tier));
+      if (tier.follow) put(box, followNote(robot, tier));
+
+      if (isEditing) box.appendChild(tierEditor(robot, tier));
     });
 
     return box;
@@ -1973,20 +1981,36 @@
       verdict, button(say('change'), 'tieredit', robot.id + '|' + i, true, 'fh-sm'));
   }
 
-  // The seeds that fit the pot size, owned first, and the fertilizer, both chosen here and sent with one press.
-  function tierEditor(tier) {
+  // Under a tier with no seed of its own: the preset it sows from and that preset's seeds for the pot size, in order.
+  function followNote(robot, tier) {
+    var preset = presetById(robot.preset);
+    var steps = preset ? (preset.seeds || {})[tier.cap] || [] : [];
+    var names = steps.map(function (s) { return cropOfSeed(s.item).name; }).join(', ');
+
+    if (!preset) return null;
+
+    return el('div', 'fh-tnote', steps.length ? say('followSeeds', preset.name, names) : say('followNone', preset.name));
+  }
+
+  // The seeds that fit the pot size, owned first, and the fertilizer, both chosen here and sent with one press. The
+  // first choice hands the tier back to the pot-size seeds of the floor's preset, which bring their own fertilizer, so
+  // it hides the fertilizers. On a floor with no preset it means no seed at all.
+  function tierEditor(robot, tier) {
     var edit = state.tierEdit;
+    var hasPreset = !!presetById(robot.preset);
+    var isSizeSeeds = edit.seed === 0;
     var seeds = el('div', 'fh-chips');
     var ferts = el('div', 'fh-chips');
     var fits = cat.seedList.filter(function (s) { return perPot(s.id, tier.cap) > 0 && (owned(s.id) > 0 || s.id === edit.seed); })
       .sort(function (a, b) { return owned(b.id) - owned(a.id) || byName(a, b); });
 
-    seeds.appendChild(chip(say('noSeed'), 'tierseed', 0, edit.seed === 0));
+    seeds.appendChild(chip(say(hasPreset ? 'sizeSeeds' : 'noSeed'), 'tierseed', 0, isSizeSeeds));
     fits.slice(0, MAX_ADD).forEach(function (s) { seeds.appendChild(chip(cropOfSeed(s.id).name, 'tierseed', s.id, edit.seed === s.id, owned(s.id), s)); });
     ferts.appendChild(chip(say('noFert'), 'tierfert', 0, edit.fert === 0));
     cat.fertList.forEach(function (f) { ferts.appendChild(chip(f.name, 'tierfert', f.id, edit.fert === f.id, owned(f.id), f)); });
 
-    return put(el('div', 'fh-tedit'), el('span', 'fh-dim', say('seed')), seeds, el('span', 'fh-dim', say('fertWord')), ferts,
+    return put(el('div', 'fh-tedit'), el('span', 'fh-dim', say('seed')), seeds,
+      isSizeSeeds ? (hasPreset ? el('span', 'fh-dim', say('sizeSeedsNote')) : null) : put(el('div', 'fh-tedit-fert'), el('span', 'fh-dim', say('fertWord')), ferts),
       put(el('div', 'fh-row2'), button(say('save'), 'settier', null, true, 'fh-gold'), button(say('cancel'), 'tierdone', null, true)));
   }
 
@@ -1997,7 +2021,7 @@
 
     if (!tier) return;
 
-    state.tierEdit = { robot: robot.id, tier: +parts[1], seed: tier.seed, fert: tier.fert };
+    state.tierEdit = { robot: robot.id, tier: +parts[1], seed: tier.follow ? 0 : tier.seed, fert: tier.follow ? 0 : tier.fert };
     render();
   }
 
@@ -2014,7 +2038,7 @@
     if (!edit) return;
 
     state.tierEdit = null;
-    sendAction('robottier|' + edit.robot + '|' + edit.tier + '|' + edit.seed + '|' + edit.fert);
+    sendAction('robottier|' + edit.robot + '|' + edit.tier + '|' + edit.seed + '|' + (edit.seed === 0 ? 0 : edit.fert));
   }
 
   // ---------- stock, on the presets tab ----------

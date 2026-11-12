@@ -6,7 +6,7 @@ namespace FarmHub.Core;
 /// <summary>What to plant in a pot: a seed, how many go in, and a fertilizer (0 for none).</summary>
 public sealed record PlantChoice(int SeedItemId, int PlantId, int SeedCount, int FertId);
 
-/// <summary>A robot sow tier to switch to another seed, because the one it has can no longer fill a pot.</summary>
+/// <summary>A robot sow tier to set to another seed and fertilizer: from the pot-size seeds, or the next seed when its own ran out.</summary>
 public sealed record TierSwitch(long RobotId, int Tier, int SeedId, int FertId);
 
 /// <summary>
@@ -76,10 +76,93 @@ public static class Picks
     }
 
     /// <summary>
-    /// For each robot tier whose seed can no longer fill one pot, the next seed in its floor's preset that can, with that
-    /// seed's crop's fertilizer. A tier with no seed set is the player's choice and is left alone.
+    /// What Farm Hub writes for a robot tier the player set to a seed in the window: theirs for the rest of the session,
+    /// even when it matches the pot-size seeds.
     /// </summary>
-    public static IReadOnlyList<TierSwitch> RobotSwitches(FarmWorld world, PresetBook book)
+    public const int PlayerPicked = -1;
+
+    private static readonly IReadOnlyDictionary<(long Robot, int Tier), int> NoneFilled = new Dictionary<(long Robot, int Tier), int>();
+
+    /// <summary>
+    /// The seed a robot tier gets from its floor preset's seeds for that pot size: the first one that can fill a pot of
+    /// that size and still keep its keep-at-least. 0 when none can.
+    /// </summary>
+    public static int PotSizeSeed(FarmWorld world, FarmPreset preset, int capacity) =>
+        preset.SeedsFor(capacity).FirstOrDefault(step => CanFill(world, step.ItemId, capacity, step.KeepAtLeast))?.ItemId ?? 0;
+
+    /// <summary>
+    /// Whether a robot tier follows the pot-size seeds. It does when it has no seed set, when its seed is the one Farm
+    /// Hub put there, or, when nobody set it this session, when its seed is the one the pot-size seeds pick right now.
+    /// The last case keeps a tier Farm Hub filled before the game was restarted. A seed the player picked is theirs.
+    /// </summary>
+    /// <param name="filled">Per robot and tier, the seed Farm Hub put there this session, or PlayerPicked.</param>
+    public static bool IsFollowing(Robot robot, int tier, int potSizeSeed, IReadOnlyDictionary<(long Robot, int Tier), int> filled)
+    {
+        var seedId = robot.Tiers[tier].SeedId;
+
+        if (seedId == 0) return true;
+        if (filled.TryGetValue((robot.Id, tier), out var known)) return known == seedId;
+
+        return seedId == potSizeSeed;
+    }
+
+    /// <summary>
+    /// For each robot tier that follows the pot-size seeds and does not hold the seed they pick now, that seed with its
+    /// crop's first fertilizer the player has. A tier whose pot size has no seed left gets 0.
+    /// </summary>
+    public static IReadOnlyList<TierSwitch> RobotFills(FarmWorld world, PresetBook book, IReadOnlyDictionary<(long Robot, int Tier), int> filled)
+    {
+        var fills = new List<TierSwitch>();
+
+        foreach (var robot in world.Robots)
+        {
+            var preset = book.PresetForFloor(robot.Floor);
+
+            if (preset == null) continue;
+
+            for (var tier = 0; tier < robot.Tiers.Count; tier++)
+            {
+                var pick = PotSizeSeed(world, preset, robot.Tiers[tier].Capacity);
+
+                if (pick == robot.Tiers[tier].SeedId || !IsFollowing(robot, tier, pick, filled)) continue;
+
+                var fertId = world.Catalog.CropOf(pick) is { } crop ? FertilizerOrder(preset, crop.PlantId).FirstOrDefault(id => world.Own(id) > 0) : 0;
+
+                fills.Add(new TierSwitch(robot.Id, tier, pick, fertId));
+            }
+        }
+
+        return fills;
+    }
+
+    /// <summary>
+    /// Writes down each tier nobody set this session that holds the seed the pot-size seeds pick now, so it keeps
+    /// following them when that seed runs out and the pick moves on.
+    /// </summary>
+    public static void NoteFollowing(FarmWorld world, PresetBook book, IDictionary<(long Robot, int Tier), int> filled)
+    {
+        foreach (var robot in world.Robots)
+        {
+            var preset = book.PresetForFloor(robot.Floor);
+
+            if (preset == null) continue;
+
+            for (var tier = 0; tier < robot.Tiers.Count; tier++)
+            {
+                var seedId = robot.Tiers[tier].SeedId;
+
+                if (seedId == 0 || filled.ContainsKey((robot.Id, tier))) continue;
+                if (seedId == PotSizeSeed(world, preset, robot.Tiers[tier].Capacity)) filled[(robot.Id, tier)] = seedId;
+            }
+        }
+    }
+
+    /// <summary>
+    /// For each robot tier with a seed of the player's that can no longer fill one pot, the next seed in its floor's
+    /// preset that can, with that seed's crop's fertilizer. Tiers that follow the pot-size seeds are RobotFills' job.
+    /// </summary>
+    /// <param name="filled">As for IsFollowing; null when Farm Hub has filled nothing this session.</param>
+    public static IReadOnlyList<TierSwitch> RobotSwitches(FarmWorld world, PresetBook book, IReadOnlyDictionary<(long Robot, int Tier), int>? filled = null)
     {
         var switches = new List<TierSwitch>();
 
@@ -94,6 +177,7 @@ public static class Picks
                 var current = robot.Tiers[tier];
 
                 if (current.SeedId == 0 || CanFill(world, current.SeedId, current.Capacity, 0)) continue;
+                if (IsFollowing(robot, tier, PotSizeSeed(world, preset, current.Capacity), filled ?? NoneFilled)) continue;
 
                 var next = preset.SeedsFor(current.Capacity).FirstOrDefault(step => step.ItemId != current.SeedId && CanFill(world, step.ItemId, current.Capacity, step.KeepAtLeast));
 

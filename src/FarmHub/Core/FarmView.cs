@@ -27,10 +27,12 @@ public static class FarmView
         WriteSettings(json, settings);
     });
 
-    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings) => Ready(world, book, settings, Plan(world, book));
+    /// <param name="filled">Who set each robot tier this session (see Picks.IsFollowing); null when Farm Hub has filled nothing.</param>
+    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings, IReadOnlyDictionary<(long Robot, int Tier), int>? filled = null) =>
+        Ready(world, book, settings, Plan(world, book), filled ?? new Dictionary<(long Robot, int Tier), int>());
 
     /// <param name="plan">Plan of this world and book, when the caller has it already.</param>
-    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings, FarmPlan plan) => Write(json =>
+    public static string Ready(FarmWorld world, PresetBook book, ViewSettings settings, FarmPlan plan, IReadOnlyDictionary<(long Robot, int Tier), int> filled) => Write(json =>
     {
         var pots = Shown(world).OrderBy(pot => pot.Floor).ThenBy(pot => pot.Area).ThenBy(pot => pot.Id).ToList();
 
@@ -46,7 +48,7 @@ public static class FarmView
         WriteRooms(json, world, pots);
         json.WriteStartArray("robots");
 
-        foreach (var robot in world.Robots.OrderBy(robot => robot.Floor).ThenBy(robot => robot.Id)) WriteRobot(json, robot);
+        foreach (var robot in world.Robots.OrderBy(robot => robot.Floor).ThenBy(robot => robot.Id)) WriteRobot(json, world, book, robot, filled);
 
         json.WriteEndArray();
         json.WriteStartArray("presets");
@@ -216,22 +218,32 @@ public static class FarmView
         json.WriteEndArray();
     }
 
-    private static void WriteRobot(Utf8JsonWriter json, Robot robot)
+    /// <summary>
+    /// A robot and its tiers. "preset" is the preset its floor uses, whose seeds for a pot size a tier with "follow"
+    /// sows from; the page lists them from the presets it already has.
+    /// </summary>
+    private static void WriteRobot(Utf8JsonWriter json, FarmWorld world, PresetBook book, Robot robot, IReadOnlyDictionary<(long Robot, int Tier), int> filled)
     {
+        var preset = book.PresetForFloor(robot.Floor);
+
         json.WriteStartObject();
         json.WriteString("id", robot.Id.ToString(CultureInfo.InvariantCulture));
         json.WriteString("name", robot.Name);
         json.WriteNumber("floor", robot.Floor);
         json.WriteNumber("battery", BatteryShown(robot));
         json.WriteBoolean("on", robot.IsOn);
+        json.WriteString("preset", preset?.Id ?? "");
         json.WriteStartArray("tiers");
 
-        foreach (var tier in robot.Tiers)
+        for (var i = 0; i < robot.Tiers.Count; i++)
         {
+            var tier = robot.Tiers[i];
+
             json.WriteStartObject();
             json.WriteNumber("cap", tier.Capacity);
             json.WriteNumber("seed", tier.SeedId);
             json.WriteNumber("fert", tier.FertId);
+            json.WriteBoolean("follow", preset != null && Picks.IsFollowing(robot, i, Picks.PotSizeSeed(world, preset, tier.Capacity), filled));
             json.WriteEndObject();
         }
 

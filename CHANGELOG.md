@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.6
+
+- A planter robot pot size with no seed set now plants the seeds listed for that pot size in the preset for the robot's floor, in order, with the preset's fertilizer. The Robots tab shows which seeds it uses.
+- In the Robots tab's seed editor, pick "Seeds by pot size" to hand a pot size back to the preset.
+- "Keep robots stocked" now only switches seeds you picked yourself.
+- Clearer wording in the window and the settings.
+- Made for Survival Log 1.1.20719.
+
 ## 0.5.5
 
 - Now uses Exiled's Toolkit for its shared parts, so it needs Exiled's Toolkit 0.19.0 or newer.
@@ -7,7 +15,7 @@
 
 ## 0.5.4
 
-- The window key is now unbound by default; open the window with the plant button in the HUD, or set a key in the settings.
+- The window key is now unbound by default. Open the window with the plant button in the HUD, or set a key in the settings.
 - The window key no longer fires while you type in a text box in any mod's window.
 - Exiled's Toolkit 0.12.0 or newer is now required.
 - Made for Survival Log 1.1.20151.
@@ -31,7 +39,7 @@
 
 ## 0.5.0
 
-- New: `UiScale` under Interface sets the size of Farm Hub's own windows on their own, from 75% to 200%, whatever Exiled's Toolkit's UI size is. At 0, the default, they follow the Toolkit's. Needs Exiled's Toolkit 0.11.0 or newer.
+- New: `UiScale` under Interface sets the size of Farm Hub's windows on their own, from 75% to 200%, whatever Exiled's Toolkit's UI size is. At 0, the default, they follow the Toolkit's. Needs Exiled's Toolkit 0.11.0 or newer.
 - Made for Survival Log 1.1.19611.
 
 ## 0.4.4
@@ -68,7 +76,7 @@
 - With no pot picked, the right side lists what needs you (harvest, care, bad spots, empty pots, fertilizer) and what ripens or rots in the next 48 hours. Pick a pot to see its timing, size, bonus, power and robot, change its preset, and do its next chore.
 - Tend all now sends the game's Tend Garden (harvest, clear, weed, water), then plants and fertilizes from your presets.
 - The window now opens with Shift+G, so G stays the game's Tend Garden. Set the new PanelKeyShift setting to false to open it with G alone, as before.
-- The planting preset editor and the seed and fertilizer stock sit side by side on the Planting presets tab. The separate forecast tab is gone; its 48 hour list is on the Pots tab.
+- The planting preset editor and the seed and fertilizer stock sit side by side on the Planting presets tab. The separate forecast tab is gone, and its 48 hour list is on the Pots tab.
 - Checking several pots at once, and grouping or sorting the list another way, were removed.
 - Updated for Survival Log 1.1.19611.
 

@@ -13,13 +13,13 @@ Press the plant button in the tool column on the left of the screen to open it, 
 - **Tend Garden from your presets**: with the game's Replant box on, Tend Garden replants a harvested pot from its preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones. Turn it off with the "from presets" box next to Replant.
 - **Planting presets with fallbacks**: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back (keep at least 4 wheat seeds, say). Then an ordered list of fertilizers, the same way.
 - **Fertilizer per crop**: a crop can have its own fertilizer order (watermelon always gets the best one). When its list runs out it either uses the preset's order or gets none, your choice per crop.
-- **Skip crops a pot cannot grow**: a crop the pot's light or temperature cannot grow is passed over for the next seed.
-- **Per pot, room or floor**: a preset can be used everywhere, on a floor, or in a room, and any pot can have its own. The most specific one wins. A pot's own preset is kept per save.
+- **Skip crops a pot cannot grow**: a crop the pot's light or temperature cannot grow is skipped and the next seed is used.
+- **Per pot, room or floor**: a preset can be used everywhere, on a floor, or in a room, and any pot can have one picked just for it. The most specific one wins. A preset picked for a pot is kept per save.
 - **Auto replant**: a preset can plant its empty pots by itself, as if you pressed Plant.
-- **Rotting soon**: a ripe crop that will rot within 12 hours (you pick 6 to 48) is flagged and sorts to the top.
-- **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. Optionally, when a robot runs out of a seed, Farm Hub switches it to the next seed in its floor's preset so it keeps sowing.
+- **Rotting soon**: a ripe crop that will rot within 12 hours (you pick 6 to 48) is marked and moves to the top.
+- **Planter robots**: see each robot's three pot sizes and change the seed and fertilizer for each. A pot size with no seed set plants the seeds listed for that size in the preset for the robot's floor, and the Robots tab shows which ones. Turn on Keep robots stocked, and a seed you picked switches to the next one in that preset when it runs out.
 - **Stock**: the Planting presets tab shows the seeds and fertilizer you own and how many pots of each size they would fill.
-- **UI size**: Exiled's Toolkit's UI size setting (`UiScale`) draws the window bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size. Farm Hub's own `UiScale` under Interface sets a size for this mod alone; at 0, the default, it follows the Toolkit's.
+- **UI size**: Exiled's Toolkit's UI size setting (`UiScale`) draws the window bigger or smaller, as far as the window still fits on the screen. The HUD button and the additions to the game's plant list keep the game's size. Farm Hub's `UiScale` under Interface sets a size for this mod alone. At 0, the default, it follows the Toolkit's.
 
 Presets are kept in `BepInEx\config\farm-hub.json`, shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
@@ -27,7 +27,7 @@ Farm Hub does what Greenline does. Use one or the other, not both.
 
 ## Requirements
 
-- Survival Log 1.1.20719. Built for this version; a game update can break it until the mod is updated.
+- Survival Log 1.1.20719. Built for this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
 - [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.19.0 or newer. Farm Hub does not load without it. It keeps Farm Hub's key quiet while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
 - Optional: [Mod Manager](https://www.nexusmods.com/survivallog/mods/73). With it, you can change every setting in game on its Mods screen and see what each one does, without opening the config file.
@@ -43,7 +43,7 @@ Farm Hub does what Greenline does. Use one or the other, not both.
 
 ## Uninstall
 
-Delete `FarmHub.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.farmhub.cfg`, `BepInEx\config\farm-hub.json` and, if it exists, `BepInEx\farm-hub.log`. Robot sow settings changed from Farm Hub stay as they were set.
+Delete `FarmHub.dll` from the `BepInEx\plugins` folder. For a clean slate, also delete `BepInEx\config\com.dev.survivallog.farmhub.cfg`, `BepInEx\config\farm-hub.json` and, if it exists, `BepInEx\farm-hub.log`. Seeds Farm Hub set on your robots stay set.
 
 ## Configuration
 
@@ -53,7 +53,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.4.4 started`, followed by `hotkeys are blocked while the panel is open`, `Shift with the panel key opens the window without also sending Tend Garden`, `clicks go to the panel while it is open`, `listening for panel messages`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.6 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Tend Garden's replant walks are noted`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
 
 ## Known issues
 
@@ -63,7 +63,7 @@ None known.
 
 Found a bug, have an idea, or something feels off? Come say so on the Core Directive Discord: https://discord.gg/trTsyxUFqg . When reporting a bug, attach `BepInEx\LogOutput.log` and, if you turned on `LogToFile`, `BepInEx\farm-hub.log`.
 
-To reach me directly, message `exiled.dev` on Discord; you can find me in the [official Survival Log Discord](https://discord.gg/MZGg4gQAUe). I'm also on X as [@AnExiledDev](https://x.com/AnExiledDev).
+To reach me directly, message `exiled.dev` on Discord. You can find me in the [official Survival Log Discord](https://discord.gg/MZGg4gQAUe). I'm also on X as [@AnExiledDev](https://x.com/AnExiledDev).
 
 ## Build
 

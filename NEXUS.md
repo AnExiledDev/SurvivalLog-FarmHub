@@ -1,5 +1,5 @@
 Name: Farm Hub
-Summary: Every pot at home in one window, plus more in the game's plant list: empty pots, what each pot needs, and the next Tend Garden's chores and stamina. Tend Garden can replant, plant and fertilize from your presets. Presets set seed and fertilizer fallbacks per pot size, per crop, room or floor, and keep planter robots sowing when a seed runs out.
+Summary: Every pot at home in one window, plus more in the game's plant list: empty pots, what each pot needs, and the next Tend Garden's chores. Tend Garden can replant, plant and fertilize from your presets. Presets set seed and fertilizer fallbacks per pot size, crop, room or floor. Planter robots with no seed set plant the preset's seeds for each pot size.
 
 Description (BBCode):
 [center][img]https://sldb.core-directive.com/media/save/1-save-safe.png[/img][/center]
@@ -15,13 +15,13 @@ Every pot at home in one window: what grows in it, when it is ripe, when it rots
 [*][b]Tend Garden from your presets[/b]: with the game's Replant box on, Tend Garden replants a harvested pot from its preset instead of opening the plant screen, then plants the empty pots and fertilizes the growing ones. Turn it off with the "from presets" box next to Replant.[/*]
 [*][b]Planting presets with fallbacks[/b]: for each pot size, an ordered list of seeds, so when one runs out the next is used. Each seed can keep a number back. Fertilizers work the same way.[/*]
 [*][b]Fertilizer per crop[/b]: a crop can have its own fertilizer order, and either fall back to the preset's order or get none when it runs out.[/*]
-[*][b]Skip crops a pot cannot grow[/b]: a crop the pot's light or temperature cannot grow is passed over for the next seed.[/*]
-[*][b]Per pot, room or floor[/b]: a preset can be used everywhere, on a floor, or in a room, and any pot can have its own.[/*]
+[*][b]Skip crops a pot cannot grow[/b]: a crop the pot's light or temperature cannot grow is skipped and the next seed is used.[/*]
+[*][b]Per pot, room or floor[/b]: a preset can be used everywhere, on a floor, or in a room, and any pot can have one picked just for it.[/*]
 [*][b]Auto replant[/b]: a preset can plant its empty pots by itself.[/*]
-[*][b]Rotting soon[/b]: a ripe crop that will rot within 12 hours (you pick 6 to 48) is flagged.[/*]
-[*][b]Planter robots[/b]: change the seed and fertilizer for each pot size, and optionally switch a robot to the next seed in its floor's preset when it runs out.[/*]
+[*][b]Rotting soon[/b]: a ripe crop that will rot within 12 hours (you pick 6 to 48) is marked.[/*]
+[*][b]Planter robots[/b]: change the seed and fertilizer for each pot size. A pot size with no seed set plants the seeds for that size from the preset for the robot's floor, and the Robots tab shows which ones. Turn on Keep robots stocked, and a seed you picked switches to the next one in that preset when it runs out.[/*]
 [*][b]Stock[/b]: the seeds and fertilizer you own, and how many pots of each size they would fill.[/*]
-[*][b]UI size[/b]: Exiled's Toolkit's UI size setting draws the window bigger or smaller, as far as it still fits on the screen. Farm Hub's own UiScale setting can set a size for this mod alone.[/*]
+[*][b]UI size[/b]: Exiled's Toolkit's UI size setting draws the window bigger or smaller, as far as it still fits on the screen. Farm Hub's UiScale setting can set a size for this mod alone.[/*]
 [/list]
 Presets are kept in [font=Courier New]BepInEx\config\farm-hub.json[/font], shared by every save. Farm Hub adds nothing to your save and does not edit game files. You can remove it at any time.
 
@@ -56,11 +56,11 @@ None known.
 Delete [font=Courier New]FarmHub.dll[/font] from the [font=Courier New]BepInEx\plugins[/font] folder. To also drop your presets, delete [font=Courier New]BepInEx\config\farm-hub.json[/font].
 
 [size=5]Configuration[/size]
-The window key is unbound by default, since the plant button opens the window. Set [font=Courier New]PanelKey[/font] to open it from the keyboard too; with [font=Courier New]PanelKeyShift[/font] on it is pressed with Shift, so G gives Shift+G and G alone stays the game's Tend Garden. The key does nothing while you type in a text box. To change the window key, the rot warning or the robot switch, edit [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font] while the game is closed, or use the Mod Manager's Mods screen (see [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url] for every setting; the cfg file explains each setting in English and Chinese). Presets are set in the Farm Hub window.
+The window key is unbound by default, since the plant button opens the window. Set [font=Courier New]PanelKey[/font] to open it from the keyboard too. With [font=Courier New]PanelKeyShift[/font] on, it is pressed with Shift, so G gives Shift+G and G alone stays the game's Tend Garden. The key does nothing while you type in a text box. To change the window key, the rot warning or the robot switch, edit [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font] while the game is closed, or use the Mod Manager's Mods screen. The cfg file explains each setting in English and Chinese, and [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url] lists them all. Presets are set in the Farm Hub window.
 
 [size=5]Feedback[/size]
 Found a bug or have an idea? Come say hi on the [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url], or post in this page's Posts tab. For bugs, please include [font=Courier New]BepInEx\LogOutput.log[/font] and, if you turned on [font=Courier New]LogToFile[/font], [font=Courier New]BepInEx\farm-hub.log[/font].
-To reach me directly, message [b]exiled.dev[/b] on Discord; you can find me in the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
+To reach me directly, message [b]exiled.dev[/b] on Discord. You can find me in the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
 
 [size=5]Source and license[/size]
 Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]github.com/AnExiledDev/SurvivalLog-FarmHub[/url]
@@ -72,22 +72,22 @@ Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]g
 
 [size=5]主要功能[/size]
 [list]
-[*][b]花盆一览[/b]：家中所有花盆按房间分组，并标出你所在的楼层，显示作物、剩余时间、成熟作物距腐烂的时间、问题和所用方案。可只看需要你处理、空着或生长中的花盆，也可按作物或房间搜索。[/*]
+[*][b]花盆一览[/b]：家中所有花盆按房间分组，并标出你所在的楼层，显示作物、剩余时间、成熟作物距腐烂的时间、问题和所用预设。可只看需要你处理、空着或生长中的花盆，也可按作物或房间搜索。[/*]
 [*][b]需要你处理[/b]：待收获、待照料、位置不佳、空着和待施肥的花盆，以及未来 48 小时内会成熟或腐烂的作物。[/*]
-[*][b]全部照料[/b]：先触发游戏自带的「巡园」（收获、清理、除草、浇水），再按方案为所有空花盆种植，为所有未施肥的生长中花盆施肥。「种植」和「施肥」只做各自的部分，也可以单独处理一个花盆。[/*]
+[*][b]全部照料[/b]：先触发游戏的「巡园」（收获、清理、除草、浇水），再按预设为所有空花盆种植，为所有未施肥的生长中花盆施肥。「种植」和「施肥」只做各自的部分，也可以单独处理一个花盆。[/*]
 [*][b]游戏植物列表中的更多信息[/b]：HUD 中的植物列表会显示每个花盆所在的房间和需要什么，列出空花盆及将要种下的种子（点击即可种植），并可在「需要你处理」和「全部」之间切换。「巡园」的提示会列出下次巡园要做的事和所需体力。[/*]
-[*][b]按方案巡园[/b]：勾选游戏的「补种」后，「巡园」收获后会按方案直接补种，而不是打开种植界面，然后为空花盆种植、为生长中的花盆施肥。可用「补种」旁的「按预设」关闭。[/*]
-[*][b]带后备的种植方案[/b]：按花盆大小设置有序的种子清单，一种用完就换下一种。每种种子可以保留一定数量。肥料也是一样。[/*]
-[*][b]按作物指定肥料[/b]：每种作物可以有自己的肥料顺序，用完后可选改用方案的肥料顺序或不施肥。[/*]
+[*][b]按预设巡园[/b]：勾选游戏的「补种」后，「巡园」收获后会按预设直接补种，而不是打开种植界面，然后为空花盆种植、为生长中的花盆施肥。可用「补种」旁的「按预设」关闭。[/*]
+[*][b]带后备的种植预设[/b]：按花盆大小设置有序的种子清单，一种用完就换下一种。每种种子可以保留一定数量。肥料也是一样。[/*]
+[*][b]按作物指定肥料[/b]：每种作物可以有自己的肥料顺序，用完后可选改用预设的肥料顺序或不施肥。[/*]
 [*][b]跳过种不了的作物[/b]：花盆的光照或温度种不了的作物会被跳过，改用下一种种子。[/*]
-[*][b]按花盆、房间或楼层[/b]：方案可以用于全部、某一楼层或某个房间，任何花盆也可以单独指定方案。[/*]
-[*][b]自动补种[/b]：方案可以自动为空花盆种植。[/*]
+[*][b]按花盆、房间或楼层[/b]：预设可以用于全部、某一楼层或某个房间，任何花盆也可以单独指定预设。[/*]
+[*][b]自动补种[/b]：预设可以自动为空花盆种植。[/*]
 [*][b]即将腐烂[/b]：12 小时内（可选 6 到 48）会腐烂的成熟作物会被标出。[/*]
-[*][b]种植机器人[/b]：按花盆大小修改种子和肥料；还可以在机器人种子用完时，自动换成所在楼层方案中的下一种种子。[/*]
+[*][b]种植机器人[/b]：按花盆大小修改种子和肥料。没有设置种子的花盆大小，会种植机器人所在楼层预设中为这种大小列出的种子，「机器人」页会显示是哪些种子。打开「保持机器人补给」后，你选的种子用完时会换成该预设中的下一种。[/*]
 [*][b]库存[/b]：你拥有的种子和肥料，以及它们够种多少个各尺寸的花盆。[/*]
-[*][b]界面大小[/b]：可以用 Exiled's Toolkit 的界面大小设置放大或缩小窗口，最大放到窗口仍能完整显示在屏幕上为止。还可以用 Farm Hub 自己的 UiScale 设置单独调整本模组的大小。[/*]
+[*][b]界面大小[/b]：可以用 Exiled's Toolkit 的界面大小设置放大或缩小窗口，最大放到窗口仍能完整显示在屏幕上为止。还可以用 Farm Hub 的 UiScale 设置单独调整本模组的大小。[/*]
 [/list]
-种植方案保存在 [font=Courier New]BepInEx\config\farm-hub.json[/font]，所有存档共用。Farm Hub 不会向存档添加任何内容，也不会修改游戏文件，可以随时移除。
+种植预设保存在 [font=Courier New]BepInEx\config\farm-hub.json[/font]，所有存档共用。Farm Hub 不会向存档添加任何内容，也不会修改游戏文件，可以随时移除。
 
 Farm Hub 包含 Greenline 的功能，两者请只装一个。安装前如已装有 Greenline，请从 [font=Courier New]BepInEx\plugins[/font] 文件夹中删除 [font=Courier New]Greenline.dll[/font]。
 
@@ -100,7 +100,7 @@ Farm Hub 包含 Greenline 的功能，两者请只装一个。安装前如已装
 [list]
 [*]Survival Log 1.1.20719。游戏更新后模组可能暂时失效，直到模组更新为止。[/*]
 [*][url=https://www.nexusmods.com/survivallog/mods/12]BepInEx for Survival Log[/url]，请先安装。[/*]
-[*][url=https://www.nexusmods.com/survivallog/mods/61]Exiled's Toolkit[/url] 0.19.0 或更新版本。没有它本模组不会加载。打字时它让 Farm Hub 的按键不起作用；窗口关闭时，它把 Farm Hub 的消息显示为弹出通知；它让在 Mod Manager 的模组界面修改的设置无需重启即可生效，它的界面大小设置还能调整窗口的大小。[/*]
+[*][url=https://www.nexusmods.com/survivallog/mods/61]Exiled's Toolkit[/url] 0.19.0 或更新版本。没有它本模组不会加载。打字时它让 Farm Hub 的按键不起作用。窗口关闭时，它把 Farm Hub 的消息显示为弹出通知。它让在 Mod Manager 的模组界面修改的设置无需重启即可生效，它的界面大小设置还能调整窗口的大小。[/*]
 [*]可选：[url=https://www.nexusmods.com/survivallog/mods/73]Mod Manager[/url]。装了它，可以在游戏里它的「模组」界面修改每项设置，并看到每项的说明，不用打开配置文件。[/*]
 [/list]
 
@@ -113,13 +113,13 @@ Farm Hub 包含 Greenline 的功能，两者请只装一个。安装前如已装
 [/list]
 
 [size=5]卸载[/size]
-从 [font=Courier New]BepInEx\plugins[/font] 文件夹中删除 [font=Courier New]FarmHub.dll[/font]。如需同时删除种植方案，再删除 [font=Courier New]BepInEx\config\farm-hub.json[/font]。
+从 [font=Courier New]BepInEx\plugins[/font] 文件夹中删除 [font=Courier New]FarmHub.dll[/font]。如需同时删除种植预设，再删除 [font=Courier New]BepInEx\config\farm-hub.json[/font]。
 
 [size=5]配置[/size]
-窗口按键默认不绑定，因为种植按钮就能打开窗口。设置 [font=Courier New]PanelKey[/font] 后也可以用键盘打开；[font=Courier New]PanelKeyShift[/font] 打开时需同时按住 Shift，因此设为 G 即为 Shift+G，单按 G 仍是游戏自带的「巡园」。在输入框里打字时该按键不起作用。如需修改窗口按键、腐烂提醒或机器人自动换种，请在游戏关闭时编辑 [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font]。配置文件中每项设置都有中文说明，完整说明见 [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url]（英文）。修改会在下次启动游戏时生效。
+窗口按键默认不绑定，因为种植按钮就能打开窗口。设置 [font=Courier New]PanelKey[/font] 后也可以用键盘打开。[font=Courier New]PanelKeyShift[/font] 打开时需同时按住 Shift，因此设为 G 即为 Shift+G，单按 G 仍是游戏的「巡园」。在输入框里打字时该按键不起作用。如需修改窗口按键、腐烂提醒或机器人自动换种，请在游戏关闭时编辑 [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font]，或使用 Mod Manager 的「模组」界面。配置文件中每项设置都有中文说明，完整说明见 [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url]（英文）。
 
 [size=5]反馈[/size]
-发现 bug 或有好点子？欢迎来 [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url] 打个招呼，或在这里留言。报告 bug 时，请附上 [font=Courier New]BepInEx\LogOutput.log[/font] 和 [font=Courier New]BepInEx\farm-hub.log[/font]。
+发现 bug 或有好点子？欢迎来 [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url] 打个招呼，或在这里留言。报告 bug 时，请附上 [font=Courier New]BepInEx\LogOutput.log[/font]，如果打开了 [font=Courier New]LogToFile[/font]，也附上 [font=Courier New]BepInEx\farm-hub.log[/font]。
 
 [size=5]源代码与许可[/size]
 基于 MIT 许可开源：[url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]github.com/AnExiledDev/SurvivalLog-FarmHub[/url]

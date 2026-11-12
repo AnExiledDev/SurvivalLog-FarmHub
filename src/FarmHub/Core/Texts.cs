@@ -35,11 +35,11 @@ public static class Texts
     public static readonly Phrase NothingToTend = new("The {0} needs nothing right now.", "{0}现在不需要照料。");
     public static readonly Phrase Refused = new("The game would not do that for the {0}.", "游戏拒绝了对{0}的操作。");
     public static readonly Counted RobotsSwitched = new(
-        new("Robots: switched 1 sow setting to the next seed.", "机器人：已将 {0} 个播种设置换成下一种种子。"),
-        new("Robots: switched {0} sow settings to the next seed.", "机器人：已将 {0} 个播种设置换成下一种种子。"));
+        new("Robots: set a new seed for 1 pot size.", "机器人：已为 {0} 种盆大小换了种子。"),
+        new("Robots: set a new seed for {0} pot sizes.", "机器人：已为 {0} 种盆大小换了种子。"));
     public static readonly Phrase RobotGone = new("That robot is gone.", "这台机器人已经不在了。");
     public static readonly Phrase RobotNumber = new("Robot {0}", "机器人 {0}");
-    public static readonly Phrase RobotTierSet = new("{0}: sow setting changed.", "{0}：播种设置已更改。");
+    public static readonly Phrase RobotTierSet = new("{0}: seed saved.", "{0}：种子已保存。");
     /// <summary>Who a toast is from, on its first line.</summary>
     public static readonly Phrase Source = new("Farm Hub", "农场中心");
 
@@ -60,11 +60,11 @@ public static class Texts
     public static readonly Phrase NoSave = new("Pot choices are kept per save, and this game has no save yet. Save the game first.", "种植盆的预设选择按存档保存，而这局游戏还没有存档。请先保存游戏。");
     public static readonly Phrase NotSaved = new("farm-hub.json could not be written, so the change lasts until the game is closed. See " + Log + ".", "无法写入 farm-hub.json，更改只在关闭游戏前有效。详见 " + Log + "。");
     public static readonly Phrase RotWarnSet = new("Rotting soon now means within {0} h.", "「快腐烂」现在表示 {0} 小时内。");
-    public static readonly Phrase RobotsOn = new("Robots will be kept stocked.", "将保持机器人补给。");
+    public static readonly Phrase RobotsOn = new("When a seed you picked for a robot runs out, Farm Hub now switches the robot to the next seed in the preset.", "你为机器人选的种子用完时，Farm Hub 现在会换成预设中的下一种种子。");
     public static readonly Phrase FromPresetsOn = new("Tend Garden will also replant, plant and fertilize from your presets.", "「巡园」也会按你的预设补种、种植和追肥。");
-    public static readonly Phrase FromPresetsOff = new("Tend Garden works as in the game again.", "「巡园」恢复为游戏原本的效果。");
+    public static readonly Phrase FromPresetsOff = new("Tend Garden works like it normally does again.", "「巡园」恢复正常效果。");
     public static readonly Phrase FromPresetsDone = new("Tend Garden, from your presets:", "「巡园」，按你的预设：");
-    public static readonly Phrase RobotsOff = new("Robots will no longer be switched to other seeds.", "不再为机器人更换种子。");
+    public static readonly Phrase RobotsOff = new("When a seed you picked for a robot runs out, Farm Hub no longer switches the robot to another seed.", "你为机器人选的种子用完时，Farm Hub 不再换成别的种子。");
 
     public static Phrase ChoreName(TendAction action) => action switch
     {
@@ -129,7 +129,7 @@ public static class Texts
         ("noPreset", new("No preset", "无预设")),
         ("plant", new("Plant", "种植")),
         ("fertilize", new("Fertilize", "追肥")),
-        ("fromPot", new("This pot's own choice", "该种植盆自选")),
+        ("fromPot", new("Picked for this pot", "为该种植盆单独选择")),
         ("fromRoom", new("From its room", "来自所在房间")),
         ("fromFloor", new("From its floor", "来自所在楼层")),
         ("fromAll", new("From the preset used everywhere", "来自用于所有地方的预设")),
@@ -193,26 +193,26 @@ public static class Texts
         ("never", new("Never fertilize", "从不追肥")),
         ("addCrop", new("+ Add crop", "+ 添加作物")),
         ("skipUnsuitable", new("Skip crops the pot cannot grow", "跳过种植盆无法种植的作物")),
-        ("skipNote", new("A seed whose crop needs more light or heat than the pot gives is passed over.", "需要的光照或温度超过种植盆所能提供的种子会被跳过。")),
+        ("skipNote", new("Seeds whose crop needs more light or heat than the pot gives are skipped.", "需要的光照或温度超过种植盆所能提供的种子会被跳过。")),
         ("fertilizeOn", new("Fertilize when planting", "种植时追肥")),
         ("fertilizeNote", new("Uses the fertilizer order above.", "使用上面的肥料顺序。")),
         ("autoReplant", new("Replant empty pots by themselves", "空盆自动补种")),
         ("autoNote", new("Plants an empty pot from this preset on its own, as if you pressed Plant.", "会像按下「种植」一样，自动按此预设为空盆种植。")),
         ("usedFor", new("Used for", "用于")),
         ("useAll", new("Everywhere", "所有地方")),
-        ("usedNote", new("A pot uses its own choice, else its room's, else its floor's, else the one used everywhere.", "种植盆优先使用自选，其次是所在房间、所在楼层，最后是用于所有地方的预设。")),
+        ("usedNote", new("A pot uses the preset picked for it first, then its room's, then its floor's, then the one used everywhere.", "种植盆优先使用为它单独选择的预设，其次是所在房间、所在楼层，最后是用于所有地方的预设。")),
         ("willDo", new("What it will do", "会怎样种植")),
         ("plantingsLeft", new("{0} plantings left", "还能种 {0} 次")),
         ("ok", new("OK", "充足")),
         ("low", new("Low", "偏少")),
         ("out", new("Out", "用完")),
-        ("planNote", new("Plantings left counts seeds above the keep counts. Two rounds for every pot is OK.", "「还能种」按超过保留数的种子计算。每个种植盆够种两轮即为充足。")),
+        ("planNote", new("Plantings left counts only the seeds above the keep counts. OK means you have enough to plant every pot twice.", "「还能种」只计算超过保留数的种子。「充足」表示够每个种植盆种两轮。")),
         ("nextBySize", new("Next crop for each size", "各大小的下一种作物")),
         ("nothingLeft", new("No seed left", "没有种子了")),
         ("seedOut", new("{0}: not enough seed, skipped.", "{0}：种子不够，会被跳过。")),
         ("noPotsUse", new("No pot uses this preset yet.", "还没有种植盆使用此预设。")),
         ("keepStocked", new("Keep robots stocked", "保持机器人补给")),
-        ("keepNote", new("When a robot runs out of the seed for a pot size, switch it to the next seed in its floor's preset.", "机器人某种盆大小的种子用完时，换成其所在楼层预设中的下一种种子。")),
+        ("keepNote", new("When a seed you picked for a robot runs out, switch it to the next seed in the preset for the robot's floor.", "你为机器人选的种子用完时，换成机器人所在楼层预设中的下一种种子。")),
         ("noRobots", new("No planter robots at home.", "家里没有种植机器人。")),
         ("battery", new("Battery {0}%", "电量 {0}%")),
         ("working", new("Working", "工作中")),
@@ -220,11 +220,15 @@ public static class Texts
         ("colSize", new("Size", "大小")),
         ("colSeed", new("Seed now", "当前种子")),
         ("noSeed", new("No seed", "无种子")),
+        ("sizeSeeds", new("Seeds by pot size", "按盆大小的种子")),
+        ("sizeSeedsNote", new("The robot plants the seeds listed for this pot size in the preset for its floor, in that order, with the preset's fertilizer.", "机器人会按顺序种植所在楼层预设中为这种盆大小列出的种子，并使用该预设的肥料。")),
+        ("followSeeds", new("Uses the seeds for this pot size from preset {0}: {1}", "使用预设「{0}」中这种盆大小的种子：{1}")),
+        ("followNone", new("Preset {0} has no seeds for this pot size, so the robot plants nothing here. Add some on the Planting presets tab.", "预设「{0}」没有这种盆大小的种子，所以机器人在这里什么都不种。请在「种植预设」页添加。")),
         ("change", new("Change", "更改")),
         ("cancel", new("Cancel", "取消")),
         ("seed", new("Seed", "种子")),
         ("stockHead", new("Seeds and fertilizer", "种子和肥料")),
-        ("stockNote", new("Per size: how many pots what you own would fill, after the keep counts.", "按大小：你拥有的数量（扣除保留数后）够种多少个种植盆。")),
+        ("stockNote", new("How many pots of each size you can fill with what you have, not counting what you keep.", "你现有的种子和肥料（不算保留的部分）够种每种大小的多少个种植盆。")),
         ("colItem", new("Item", "物品")),
         ("colHave", new("Have", "拥有")),
         ("comingUp", new("Next 48 hours", "未来 48 小时")),
@@ -233,13 +237,13 @@ public static class Texts
         ("rotWarnNote", new("Pots this close to rotting are marked red and counted on the plant button.", "这么快就要腐烂的种植盆会标红，并计入植物按钮上的数字。")),
         ("hotkey", new("Hotkey", "按键")),
         ("keyOpen", new("{0} opens and closes this window.", "按 {0} 打开或关闭此窗口。")),
-        ("keyNone", new("No key is set; use the plant button on the left of the screen.", "未设置按键；请使用屏幕左侧的植物按钮。")),
+        ("keyNone", new("No key is set. Use the plant button on the left of the screen.", "未设置按键。请使用屏幕左侧的植物按钮。")),
         ("presetFile", new("Presets are kept in BepInEx/config/farm-hub.json, shared by every save.", "预设保存在 BepInEx/config/farm-hub.json，所有存档共用。")),
         ("escClose", new("Esc to close", "Esc 关闭")),
         ("fNeeds", new("Needs you", "需要你处理")),
         ("fGrowing", new("Growing", "生长中")),
         ("cNeed", new("{0} need you", "{0} 个需要你处理")),
-        ("keyTend", new("Tend Garden (game)", "「巡园」（游戏自带）")),
+        ("keyTend", new("Tend Garden (game)", "「巡园」（游戏）")),
         ("keyThis", new("this window", "此窗口")),
         ("nJobs", new("{0} jobs", "{0} 项")),
         ("todoCare", new("Clear, weed or water", "清理、除草或浇水")),
@@ -282,7 +286,7 @@ public static class Texts
         ("hThenHead", new("Then, from your presets", "然后，按你的预设")),
         ("hReplant", new("Replant", "补种")),
         ("hPlantEmpty", new("Plant empty pots", "种植空盆")),
-        ("hShort", new("Not enough stamina for all of it; the rest waits.", "体力不足，其余的会等待。")),
+        ("hShort", new("Not enough stamina for all of it. The rest waits.", "体力不够做完全部，剩下的之后再做。")),
         ("hNoSeedFor", new("No seed left for {0}", "{0}没有可用的种子")),
         ("hNoSeedMore", new("No seed left for {0} and {1} more", "{0}等 {1} 个种植盆没有可用的种子")),
         ("hIdle", new("Nothing to tend right now.", "现在没有需要照料的。")),

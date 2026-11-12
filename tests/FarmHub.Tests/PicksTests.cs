@@ -105,4 +105,67 @@ public class PicksTests
 
         Assert.Equal(new[] { new TierSwitch(7, 0, TomatoSeed, Basic) }, Picks.RobotSwitches(game.World, book));
     }
+
+    private static readonly Dictionary<(long Robot, int Tier), int> NobodySet = new();
+
+    private static FakeGame OneRobot(int seedOnSmall, params (int Item, int Count)[] stock)
+    {
+        var game = new FakeGame();
+
+        foreach (var (item, count) in stock) game.Stock[item] = count;
+
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, seedOnSmall, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
+
+        return game;
+    }
+
+    [Fact]
+    public void An_empty_robot_tier_gets_the_first_pot_size_seed_it_can_fill_and_sizes_with_no_seeds_stay_empty()
+    {
+        var game = OneRobot(0, (TomatoSeed, 3), (WheatSeed, 5), (Basic, 2));
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed), Step(WheatSeed) } }, ferts: new[] { Basic }));
+
+        Assert.Equal(new[] { new TierSwitch(7, 0, TomatoSeed, Basic) }, Picks.RobotFills(game.World, book, NobodySet));
+    }
+
+    [Fact]
+    public void A_seed_Farm_Hub_filled_moves_on_when_it_runs_out_and_the_same_seed_picked_by_the_player_stays()
+    {
+        var game = OneRobot(WheatSeed, (WheatSeed, 0), (TomatoSeed, 3));
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(WheatSeed), Step(TomatoSeed) } }));
+        var filledWheat = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = WheatSeed };
+        var playerWheat = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = Picks.PlayerPicked };
+
+        Assert.Equal(new[] { new TierSwitch(7, 0, TomatoSeed, 0) }, Picks.RobotFills(game.World, book, filledWheat));
+        Assert.Empty(Picks.RobotFills(game.World, book, playerWheat));
+        Assert.Empty(Picks.RobotSwitches(game.World, book, filledWheat));
+    }
+
+    [Fact]
+    public void A_filled_tier_is_emptied_when_its_pot_size_has_no_seed_left()
+    {
+        var game = OneRobot(WheatSeed, (WheatSeed, 0), (Basic, 2));
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(WheatSeed) } }, ferts: new[] { Basic }));
+        var filled = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = WheatSeed };
+
+        Assert.Equal(new[] { new TierSwitch(7, 0, 0, 0) }, Picks.RobotFills(game.World, book, filled));
+    }
+
+    // After a restart nothing is written down: a tier holding the seed the pot-size seeds pick now is taken as filled,
+    // so it keeps following them, and a tier holding any other seed is taken as the player's.
+    [Fact]
+    public void A_tier_holding_the_current_pot_size_seed_is_noted_as_following_and_another_seed_is_not()
+    {
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed) } }));
+        var holdsPick = OneRobot(TomatoSeed, (TomatoSeed, 3));
+        var holdsOther = OneRobot(WheatSeed, (TomatoSeed, 3), (WheatSeed, 3));
+        var pickNoted = new Dictionary<(long Robot, int Tier), int>();
+        var otherNoted = new Dictionary<(long Robot, int Tier), int>();
+
+        Picks.NoteFollowing(holdsPick.World, book, pickNoted);
+        Picks.NoteFollowing(holdsOther.World, book, otherNoted);
+
+        Assert.Equal(TomatoSeed, pickNoted[(7, 0)]);
+        Assert.Empty(otherNoted);
+    }
 }

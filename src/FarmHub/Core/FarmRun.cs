@@ -125,29 +125,58 @@ public static class FarmRun
         return new FarmOutcome.FromPresets(planted is FarmOutcome.Planted done ? done.Count : 0, fertilized is FarmOutcome.Fertilizing fed ? fed.Count : 0);
     });
 
-    /// <summary>Sets one of a robot's sow settings. A seed whose crop does not fit that pot size is refused before the game sees it.</summary>
-    public static FarmOutcome SetRobotTier(IFarmGame game, long robotId, int tier, int seedId, int fertId) => WithWorld(game, world =>
-    {
-        var robot = world.Robots.FirstOrDefault(found => found.Id == robotId);
+    /// <summary>
+    /// Sets one of a robot's sow settings from the window. A seed whose crop does not fit that pot size is refused
+    /// before the game sees it. Seed 0 hands the tier to the pot-size seeds; any other seed is the player's pick.
+    /// </summary>
+    /// <param name="filled">As for Auto, told who set the tier.</param>
+    public static FarmOutcome SetRobotTier(IFarmGame game, long robotId, int tier, int seedId, int fertId, Dictionary<(long Robot, int Tier), int>? filled = null) =>
+        WithWorld(game, world =>
+        {
+            var robot = world.Robots.FirstOrDefault(found => found.Id == robotId);
 
-        if (robot == null) return new FarmOutcome.RobotGone();
+            if (robot == null) return new FarmOutcome.RobotGone();
 
-        var fits = tier < robot.Tiers.Count && (seedId == 0 || (world.Catalog.CropOf(seedId) is { } crop && Picks.Fits(crop, robot.Tiers[tier].Capacity)));
+            var fits = tier < robot.Tiers.Count && (seedId == 0 || (world.Catalog.CropOf(seedId) is { } crop && Picks.Fits(crop, robot.Tiers[tier].Capacity)));
 
-        return fits && game.SetRobotTier(robot.Id, tier, seedId, fertId) ? new FarmOutcome.RobotTierSet(robot.Name) : new FarmOutcome.Refused(robot.Name);
-    });
+            if (!fits || !game.SetRobotTier(robot.Id, tier, seedId, fertId)) return new FarmOutcome.Refused(robot.Name);
+
+            if (seedId == 0) filled?.Remove((robot.Id, tier));
+            else if (filled != null) filled[(robot.Id, tier)] = Picks.PlayerPicked;
+
+            return new FarmOutcome.RobotTierSet(robot.Name);
+        });
 
     /// <summary>
-    /// The auto pass: empty pots whose preset replants on its own, and, when the player turned it on, robot tiers out of
-    /// seed. A pot that had no seed or that the game refused waits a minute before it is tried again.
+    /// The auto pass: empty pots whose preset replants on its own, robot tiers that follow the pot-size seeds, and, when
+    /// the player turned it on, robot tiers whose own seed ran out. A pot that had no seed or that the game refused
+    /// waits a minute before it is tried again.
     /// </summary>
-    public static FarmOutcome Auto(IFarmGame game, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked) => WithWorld(game, world =>
+    /// <param name="filled">Per robot and tier, the seed Farm Hub put there this session (see Picks.IsFollowing); each fill is written in.</param>
+    public static FarmOutcome Auto(IFarmGame game, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked,
+        Dictionary<(long Robot, int Tier), int>? filled = null) => WithWorld(game, world =>
     {
-        var planted = PlantWhere(game, book, world, pot => IsAutoReplanted(world, book, pot, now, retryAt), failed => retryAt[failed] = now + RetrySeconds);
-        var switched = isKeepingRobotsStocked ? Picks.RobotSwitches(world, book).Count(change => game.SetRobotTier(change.RobotId, change.Tier, change.SeedId, change.FertId)) : 0;
+        filled ??= new Dictionary<(long Robot, int Tier), int>();
+        Picks.NoteFollowing(world, book, filled);
 
-        return new FarmOutcome.AutoDone(planted is FarmOutcome.Planted done ? done.Count : 0, switched);
+        // Both lists come from the same read, before either is written, so a tier is never both filled and switched.
+        var fills = Picks.RobotFills(world, book, filled);
+        var switches = isKeepingRobotsStocked ? Picks.RobotSwitches(world, book, filled) : Array.Empty<TierSwitch>();
+        var planted = PlantWhere(game, book, world, pot => IsAutoReplanted(world, book, pot, now, retryAt), failed => retryAt[failed] = now + RetrySeconds);
+        var robotTiers = fills.Count(fill => SetFilledTier(game, fill, filled)) + switches.Count(change => game.SetRobotTier(change.RobotId, change.Tier, change.SeedId, change.FertId));
+
+        return new FarmOutcome.AutoDone(planted is FarmOutcome.Planted done ? done.Count : 0, robotTiers);
     });
+
+    private static bool SetFilledTier(IFarmGame game, TierSwitch fill, Dictionary<(long Robot, int Tier), int> filled)
+    {
+        if (!game.SetRobotTier(fill.RobotId, fill.Tier, fill.SeedId, fill.FertId)) return false;
+
+        if (fill.SeedId == 0) filled.Remove((fill.RobotId, fill.Tier));
+        else filled[(fill.RobotId, fill.Tier)] = fill.SeedId;
+
+        return true;
+    }
 
     /// <summary>Whether any preset replants on its own.</summary>
     public static bool HasAutoReplant(PresetBook book)
@@ -162,16 +191,20 @@ public static class FarmRun
 
     /// <summary>
     /// Whether Auto, run now on this world, would try anything: an empty pot it would replant (or find out of seed), or
-    /// a robot tier it would switch. The caller skips Auto while this is false.
+    /// a robot tier it would fill or switch. The caller skips Auto while this is false.
     /// </summary>
-    public static bool HasAutoWork(FarmWorld world, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked)
+    /// <param name="filled">As for Auto; null when Farm Hub has filled nothing this session.</param>
+    public static bool HasAutoWork(FarmWorld world, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked,
+        Dictionary<(long Robot, int Tier), int>? filled = null)
     {
         foreach (var pot in world.Pots)
         {
             if (CanPlant(pot) && world.Catalog.Kinds.ContainsKey(pot.KindId) && IsAutoReplanted(world, book, pot, now, retryAt)) return true;
         }
 
-        return isKeepingRobotsStocked && Picks.RobotSwitches(world, book).Count > 0;
+        filled ??= new Dictionary<(long Robot, int Tier), int>();
+
+        return Picks.RobotFills(world, book, filled).Count > 0 || (isKeepingRobotsStocked && Picks.RobotSwitches(world, book, filled).Count > 0);
     }
 
     /// <summary>The auto pass's own test of a pot, before the pot's seed is picked: its preset replants and it is not waiting out a retry.</summary>

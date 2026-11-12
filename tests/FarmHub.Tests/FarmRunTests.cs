@@ -120,8 +120,52 @@ public class FarmRunTests
         game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
 
         Assert.Equal("The game would not do that for the Robot 1.", Say(FarmRun.SetRobotTier(game, 7, 0, MelonSeed, 0)));
-        Assert.Equal("Robot 1: sow setting changed.", Say(FarmRun.SetRobotTier(game, 7, 1, MelonSeed, Super)));
+        Assert.Equal("Robot 1: seed saved.", Say(FarmRun.SetRobotTier(game, 7, 1, MelonSeed, Super)));
         Assert.Equal(new RobotTier(4, MelonSeed, Super), game.Robots[0].Tiers[1]);
+    }
+
+    // The player never set a seed for this robot and left Keep robots stocked off: the pot-size seeds still drive it,
+    // first Tomato (listed first, though Wheat is also in stock), then Wheat once the Tomato seed is gone.
+    [Fact]
+    public void An_empty_robot_tier_sows_the_pot_size_seeds_even_with_keep_stocked_off()
+    {
+        var game = new FakeGame { Stock = { [TomatoSeed] = 3, [WheatSeed] = 5, [Basic] = 2 } };
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed), Step(WheatSeed) } }, ferts: new[] { Basic }));
+        var filled = new Dictionary<(long Robot, int Tier), int>();
+
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
+
+        Assert.True(FarmRun.HasAutoWork(game.World, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled));
+        Assert.Equal("Robots: set a new seed for 1 pot size.", Say(FarmRun.Auto(game, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled)));
+        Assert.Equal(new RobotTier(2, TomatoSeed, Basic), game.Robots[0].Tiers[0]);
+        Assert.Equal(new RobotTier(4, 0, 0), game.Robots[0].Tiers[1]);
+
+        game.Stock[TomatoSeed] = 0;
+        FarmRun.Auto(game, book, 1f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+
+        Assert.Equal(new RobotTier(2, WheatSeed, Basic), game.Robots[0].Tiers[0]);
+    }
+
+    // With Keep robots stocked off, a seed the player picked stays even when it runs out. Choosing Seeds by pot size
+    // (seed 0) in the window hands the tier back, and the next pass fills it.
+    [Fact]
+    public void A_seed_the_player_picked_stays_until_they_hand_the_tier_back()
+    {
+        var game = new FakeGame { Stock = { [TomatoSeed] = 3, [WheatSeed] = 0 } };
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed) } }));
+        var filled = new Dictionary<(long Robot, int Tier), int>();
+
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
+
+        FarmRun.SetRobotTier(game, 7, 0, WheatSeed, 0, filled);
+        FarmRun.Auto(game, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+
+        Assert.Equal(new RobotTier(2, WheatSeed, 0), game.Robots[0].Tiers[0]);
+
+        FarmRun.SetRobotTier(game, 7, 0, 0, 0, filled);
+        FarmRun.Auto(game, book, 1f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+
+        Assert.Equal(new RobotTier(2, TomatoSeed, 0), game.Robots[0].Tiers[0]);
     }
 
     [Fact]

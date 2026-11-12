@@ -78,6 +78,23 @@ public class RefreshCostTests
         Assert.Equal(FarmPrint.Window(world, Settings), FarmPrint.Window(sameShown, Settings));
     }
 
+    // The same seed in the same tier shows differently when the player picked it (no pot-size seeds note), so who set
+    // it is part of the print.
+    [Fact]
+    public void Who_set_a_robot_tier_changes_the_windows_print()
+    {
+        var game = Home();
+
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, WheatSeed, 0) }, 50f, 100f, IsOn: true));
+
+        var world = Seen(game);
+        var filled = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = WheatSeed };
+        var picked = new Dictionary<(long Robot, int Tier), int> { [(7, 0)] = Picks.PlayerPicked };
+
+        Assert.NotEqual(FarmPrint.Window(world, Settings, filled), FarmPrint.Window(world, Settings, picked));
+        Assert.Equal(FarmPrint.Window(world, Settings, filled), FarmPrint.Window(world, Settings, new Dictionary<(long Robot, int Tier), int>(filled)));
+    }
+
     [Fact]
     public void A_growing_crops_clock_moves_only_the_windows_print_and_only_by_the_tenth_of_an_hour_it_shows()
     {

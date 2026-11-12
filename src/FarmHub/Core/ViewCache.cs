@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace FarmHub.Core;
 
 /// <summary>
@@ -53,15 +55,16 @@ public sealed class ViewCache
         return (_hud, _badge);
     }
 
-    public string Window(FarmWorld world, PresetBook book, ViewSettings settings)
+    /// <param name="filled">Who set each robot tier this session (see Picks.IsFollowing); null when Farm Hub has filled nothing.</param>
+    public string Window(FarmWorld world, PresetBook book, ViewSettings settings, IReadOnlyDictionary<(long Robot, int Tier), int>? filled = null)
     {
         KeepFor(world);
 
-        var print = FarmPrint.Window(world, settings);
+        var print = FarmPrint.Window(world, settings, filled);
 
         if (_window != null && print == _windowPrint && ReferenceEquals(book, _windowBook)) return _window;
 
-        _window = FarmView.Ready(world, book, settings);
+        _window = FarmView.Ready(world, book, settings, filled);
         _windowPrint = print;
         _windowBook = book;
         Builds++;

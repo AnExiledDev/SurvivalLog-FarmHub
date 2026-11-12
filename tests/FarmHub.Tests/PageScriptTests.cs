@@ -342,6 +342,51 @@ public class PageScriptTests
         Assert.True(page.Is($"panelButton('tierseed','{WheatSeed}')"));
     }
 
+    // Small pots have no seed set, so they name the preset for the robot's floor and its small-pot seeds in order.
+    // Medium pots have none set either, and that preset lists nothing for them.
+    [Fact]
+    public void A_robot_tier_with_no_seed_set_says_which_pot_size_seeds_it_uses()
+    {
+        var game = Home();
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed), Step(WheatSeed) } }));
+
+        game.Robots[0] = game.Robots[0] with { Tiers = new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) } };
+
+        var page = Opened(game, book);
+
+        ShowTab(page, "robots");
+
+        var notes = page.Text("panel().querySelectorAll('.fh-tnote').map(function (n) { return n.textContent; }).join('|')");
+
+        Assert.StartsWith("Uses the seeds for this pot size from preset Preset p1: Tomato, Wheat|Preset Preset p1 has no seeds for this pot size", notes);
+    }
+
+    // A seed the player picked is replaced with Seeds by pot size, which brings the preset's fertilizer, so no
+    // fertilizer is offered and none is sent.
+    [Fact]
+    public void Seeds_by_pot_size_hands_a_robot_tier_back_to_the_preset()
+    {
+        var game = Home();
+
+        game.Robots[0] = game.Robots[0] with { Tiers = new[] { new RobotTier(2, TomatoSeed, Basic), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) } };
+
+        var page = Opened(game);
+
+        ShowTab(page, "robots");
+        page.Click("panelButton('tieredit','7|0')");
+
+        Assert.True(page.Is($"panelButton('tierfert','{Basic}')"));
+
+        page.Click("panelButton('tierseed','0')");
+
+        Assert.Contains("Seeds by pot size", page.Text("panelButton('tierseed','0').textContent"));
+        Assert.False(page.Is($"panelButton('tierfert','{Basic}')"));
+
+        page.Click("panelButton('settier')");
+
+        Assert.Equal(new PageCommand[] { new PageCommand.RobotTier(7, 0, 0, 0) }, page.Sent);
+    }
+
     [Fact]
     public void The_rot_warning_and_robot_switch_are_set_from_the_window()
     {

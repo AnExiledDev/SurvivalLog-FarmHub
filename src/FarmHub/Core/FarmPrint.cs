@@ -38,7 +38,8 @@ public static class FarmPrint
         return print.Value;
     }
 
-    public static ulong Window(FarmWorld world, ViewSettings settings)
+    /// <param name="filled">Who set each robot tier this session; it decides which tiers show as following the pot-size seeds.</param>
+    public static ulong Window(FarmWorld world, ViewSettings settings, IReadOnlyDictionary<(long Robot, int Tier), int>? filled = null)
     {
         var print = new Print();
 
@@ -80,6 +81,7 @@ public static class FarmPrint
                 print.Add(robot.Tiers[tier].Capacity);
                 print.Add(robot.Tiers[tier].SeedId);
                 print.Add(robot.Tiers[tier].FertId);
+                print.Add(filled != null && filled.TryGetValue((robot.Id, tier), out var known) ? known : long.MinValue);
             }
         }
 

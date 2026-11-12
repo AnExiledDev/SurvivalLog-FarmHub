@@ -35,11 +35,11 @@ public static class Texts
     public static readonly Phrase NothingToTend = new("The {0} needs nothing right now.", "{0}现在不需要照料。");
     public static readonly Phrase Refused = new("The game would not do that for the {0}.", "游戏拒绝了对{0}的操作。");
     public static readonly Counted RobotsSwitched = new(
-        new("Robots: set a new seed for 1 pot size.", "机器人：已为 {0} 种盆大小换了种子。"),
-        new("Robots: set a new seed for {0} pot sizes.", "机器人：已为 {0} 种盆大小换了种子。"));
+        new("Robots: set a new seed for 1 pot size.", "机器人：已为 {0} 种大小的种植盆换了种子。"),
+        new("Robots: set a new seed for {0} pot sizes.", "机器人：已为 {0} 种大小的种植盆换了种子。"));
     public static readonly Counted RobotsOutOfSeeds = new(
-        new("Robots: out of seeds for 1 pot size.", "机器人：{0} 种盆大小的种子用完了。"),
-        new("Robots: out of seeds for {0} pot sizes.", "机器人：{0} 种盆大小的种子用完了。"));
+        new("Robots: out of seeds for 1 pot size.", "机器人：{0} 种大小的种植盆没有种子了。"),
+        new("Robots: out of seeds for {0} pot sizes.", "机器人：{0} 种大小的种植盆没有种子了。"));
     public static readonly Phrase RobotGone = new("That robot is gone.", "这台机器人已经不在了。");
     public static readonly Phrase RobotNumber = new("Robot {0}", "机器人 {0}");
     public static readonly Phrase RobotTierSet = new("{0}: seed saved.", "{0}：种子已保存。");
@@ -227,6 +227,8 @@ public static class Texts
         ("sizeSeedsNote", new("The robot plants the seeds listed for this pot size in the preset for its floor, in that order, with the preset's fertilizer.", "机器人会按顺序种植所在楼层预设中为这种盆大小列出的种子，并使用该预设的肥料。")),
         ("followSeeds", new("Uses the seeds for this pot size from preset {0}: {1}", "使用预设「{0}」中这种盆大小的种子：{1}")),
         ("followNone", new("Preset {0} has no seeds for this pot size, so the robot plants nothing here. Add some on the Planting presets tab.", "预设「{0}」没有这种盆大小的种子，所以机器人在这里什么都不种。请在「种植预设」页添加。")),
+        ("followOut", new("Out of the seeds for this pot size in preset {0}: {1}", "预设「{0}」中这种盆大小的种子用完了：{1}")),
+        ("pickedNote", new("You picked this seed, so the preset's seeds are not used here. To use them again, press Change and pick Seeds by pot size.", "这是你选的种子，所以这里不用预设的种子。要改回来，请点「更改」并选择「按盆大小的种子」。")),
         ("change", new("Change", "更改")),
         ("cancel", new("Cancel", "取消")),
         ("seed", new("Seed", "种子")),

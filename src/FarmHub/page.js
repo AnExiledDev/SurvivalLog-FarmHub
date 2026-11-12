@@ -198,6 +198,8 @@
     sizeSeedsNote: 'The robot plants the seeds listed for this pot size in the preset for its floor, in that order, with the preset\'s fertilizer.',
     followSeeds: 'Uses the seeds for this pot size from preset {0}: {1}',
     followNone: 'Preset {0} has no seeds for this pot size, so the robot plants nothing here. Add some on the Planting presets tab.',
+    followOut: 'Out of the seeds for this pot size in preset {0}: {1}',
+    pickedNote: 'You picked this seed, so the preset\'s seeds are not used here. To use them again, press Change and pick Seeds by pot size.',
     change: 'Change',
     cancel: 'Cancel',
     seed: 'Seed',
@@ -1960,7 +1962,7 @@
 
       box.appendChild(tierRow(robot, tier, i));
 
-      if (tier.follow) put(box, followNote(robot, tier));
+      put(box, tier.follow ? followNote(robot, tier) : pickedNote(robot, tier));
 
       if (isEditing) box.appendChild(tierEditor(robot, tier));
     });
@@ -1989,7 +1991,16 @@
 
     if (!preset) return null;
 
-    return el('div', 'fh-tnote', steps.length ? say('followSeeds', preset.name, names) : say('followNone', preset.name));
+    var isOut = !steps.some(function (s) { return plantings(s, tier.cap) > 0; });
+
+    if (!steps.length) return el('div', 'fh-tnote', say('followNone', preset.name));
+
+    return el('div', 'fh-tnote', say(isOut ? 'followOut' : 'followSeeds', preset.name, names));
+  }
+
+  // Under a seed the player picked on a floor with a preset: how to hand the tier back to it.
+  function pickedNote(robot, tier) {
+    return tier.seed && presetById(robot.preset) ? el('div', 'fh-tnote', say('pickedNote')) : null;
   }
 
   // The seeds that fit the pot size, owned first, and the fertilizer, both chosen here and sent with one press. The

@@ -4,6 +4,7 @@
 
 - A planter robot pot size with no seed set now plants the seeds listed for that pot size in the preset for the robot's floor, in order, with the preset's fertilizer. The Robots tab shows which seeds it uses.
 - In the Robots tab's seed editor, pick "Seeds by pot size" to hand a pot size back to the preset.
+- The Robots tab says when a pot size has run out of the preset's seeds, and a seed you picked yourself says how to go back to the preset.
 - "Keep robots stocked" now only switches seeds you picked yourself.
 - Clearer wording in the window and the settings.
 - Made for Survival Log 1.1.20719.

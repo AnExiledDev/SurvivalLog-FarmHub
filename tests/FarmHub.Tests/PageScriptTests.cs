@@ -361,6 +361,31 @@ public class PageScriptTests
         Assert.StartsWith("Uses the seeds for this pot size from preset Preset p1: Tomato, Wheat|Preset Preset p1 has no seeds for this pot size", notes);
     }
 
+    // Small pots still follow the preset but every seed it lists for them is gone, so the note says they ran out
+    // instead of saying the robot uses them. Medium pots hold a seed the player picked, so they say how to go back.
+    [Fact]
+    public void A_robot_tier_says_when_its_pot_size_seeds_ran_out_and_how_to_undo_a_seed_you_picked()
+    {
+        var game = Home();
+        var book = Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed), Step(WheatSeed) } }));
+
+        game.Robots[0] = game.Robots[0] with { Tiers = new[] { new RobotTier(2, 0, 0), new RobotTier(4, MelonSeed, 0), new RobotTier(6, 0, 0) } };
+
+        var picked = new Dictionary<(long Robot, int Tier), int> { [(game.Robots[0].Id, 1)] = Picks.PlayerPicked };
+        var page = new PageScript();
+
+        game.Stock[TomatoSeed] = 0;
+        game.Stock[WheatSeed] = 0;
+        page.Catalog(CatalogView.Write(game.World.Catalog));
+        page.Open(FarmView.Ready(game.World, book, Settings, picked));
+
+        ShowTab(page, "robots");
+
+        var notes = page.Text("panel().querySelectorAll('.fh-tnote').map(function (n) { return n.textContent; }).join('|')");
+
+        Assert.StartsWith("Out of the seeds for this pot size in preset Preset p1: Tomato, Wheat|You picked this seed, so the preset's seeds are not used here.", notes);
+    }
+
     // A seed the player picked is replaced with Seeds by pot size, which brings the preset's fertilizer, so no
     // fertilizer is offered and none is sent.
     [Fact]

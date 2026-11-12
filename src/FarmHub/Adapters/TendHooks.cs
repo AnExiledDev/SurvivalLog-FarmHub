@@ -38,7 +38,7 @@ internal static class TendHooks
     {
         _hooks = hooks;
         hooks.Patch(typeof(TendHooks), typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.Dispatch), prefix: nameof(NoteReplant),
-            done: "Tend Garden's replant walks are noted", consequence: "Tend Garden opens the game's plant screen to replant");
+            done: "Farm Hub sees when Tend Garden replants", consequence: "Tend Garden opens the game's plant screen to replant");
         hooks.Patch(typeof(TendHooks), typeof(AE_OpenPlantPanel), nameof(AE_OpenPlantPanel.Run), prefix: nameof(SowInstead),
             done: "Tend Garden replants from the presets", consequence: "Tend Garden opens the game's plant screen to replant");
         hooks.Patch(typeof(TendHooks), typeof(PlantChoreBatchManager), nameof(PlantChoreBatchManager.OnBatchRequest), postfix: nameof(NotePatrol),

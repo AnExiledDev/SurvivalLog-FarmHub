@@ -71,7 +71,7 @@ public sealed class Plugin : BasePlugin
             log.Write);
 
         log.Write($"===== Farm Hub {Version} started");
-        GameKeys.Apply(hooks);
+        Adapters.GameKeys.Apply(hooks);
         TendHooks.Apply(hooks);
 
         LiveSettings.Watch(() =>

@@ -59,8 +59,8 @@ Delete [font=Courier New]FarmHub.dll[/font] from the [font=Courier New]BepInEx\p
 The window key is unbound by default, since the plant button opens the window. Set [font=Courier New]PanelKey[/font] to open it from the keyboard too. With [font=Courier New]PanelKeyShift[/font] on, it is pressed with Shift, so G gives Shift+G and G alone stays the game's Tend Garden. The key does nothing while you type in a text box. To change the window key, the rot warning or the robot switch, edit [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font] while the game is closed, or use the Mod Manager's Mods screen. The cfg file explains each setting in English and Chinese, and [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url] lists them all. Presets are set in the Farm Hub window.
 
 [size=5]Feedback[/size]
-Found a bug or have an idea? Come say hi on the [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url], or post in this page's Posts tab. For bugs, please include [font=Courier New]BepInEx\LogOutput.log[/font] and, if you turned on [font=Courier New]LogToFile[/font], [font=Courier New]BepInEx\farm-hub.log[/font].
-To reach me directly, message [b]exiled.dev[/b] on Discord. You can find me in the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
+Found a bug or have an idea? Come say hi in the [url=https://discord.gg/pDrQtqbZgb]unofficial modding Discord for Survival Log[/url], or post in this page's Posts tab. For bugs, please include [font=Courier New]BepInEx\LogOutput.log[/font] and, if you turned on [font=Courier New]LogToFile[/font], [font=Courier New]BepInEx\farm-hub.log[/font].
+To reach me directly, message [b]exiled.dev[/b] on Discord. You can find me in the [url=https://discord.gg/pDrQtqbZgb]unofficial modding Discord[/url] and the [url=https://discord.gg/MZGg4gQAUe]official Survival Log Discord[/url]. I'm also on X as [url=https://x.com/AnExiledDev]@AnExiledDev[/url].
 
 [size=5]Source and license[/size]
 Open source under MIT: [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]github.com/AnExiledDev/SurvivalLog-FarmHub[/url]
@@ -119,7 +119,8 @@ Farm Hub 包含 Greenline 的功能，两者请只装一个。安装前如已装
 窗口按键默认不绑定，因为种植按钮就能打开窗口。设置 [font=Courier New]PanelKey[/font] 后也可以用键盘打开。[font=Courier New]PanelKeyShift[/font] 打开时需同时按住 Shift，因此设为 G 即为 Shift+G，单按 G 仍是游戏的「巡园」。在输入框里打字时该按键不起作用。如需修改窗口按键、腐烂提醒或机器人自动换种，请在游戏关闭时编辑 [font=Courier New]BepInEx\config\com.dev.survivallog.farmhub.cfg[/font]，或使用 Mod Manager 的「模组」界面。配置文件中每项设置都有中文说明，完整说明见 [url=https://github.com/AnExiledDev/SurvivalLog-FarmHub/blob/main/CONFIG.md]CONFIG.md[/url]（英文）。
 
 [size=5]反馈[/size]
-发现 bug 或有好点子？欢迎来 [url=https://discord.gg/trTsyxUFqg]Core Directive Discord[/url] 打个招呼，或在这里留言。报告 bug 时，请附上 [font=Courier New]BepInEx\LogOutput.log[/font]，如果打开了 [font=Courier New]LogToFile[/font]，也附上 [font=Courier New]BepInEx\farm-hub.log[/font]。
+发现 bug 或有好点子？欢迎来 [url=https://discord.gg/pDrQtqbZgb]Survival Log 非官方模组 Discord[/url] 打个招呼，或在这里留言。报告 bug 时，请附上 [font=Courier New]BepInEx\LogOutput.log[/font]，如果打开了 [font=Courier New]LogToFile[/font]，也附上 [font=Courier New]BepInEx\farm-hub.log[/font]。
+想直接联系我，可以在 Discord 上给 [b]exiled.dev[/b] 发消息，我在 [url=https://discord.gg/pDrQtqbZgb]Survival Log 非官方模组 Discord[/url] 和 [url=https://discord.gg/MZGg4gQAUe]Survival Log 官方 Discord[/url] 里。也可以在 X 上找我：[url=https://x.com/AnExiledDev]@AnExiledDev[/url]。
 
 [size=5]源代码与许可[/size]
 基于 MIT 许可开源：[url=https://github.com/AnExiledDev/SurvivalLog-FarmHub]github.com/AnExiledDev/SurvivalLog-FarmHub[/url]

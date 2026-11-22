@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.9
+
+- The Planting presets tab no longer cuts off long seed names or the None button.
+- Made for Survival Log 1.1.21671.
+
 ## 0.5.8
 
 - Clearer wording in the window.

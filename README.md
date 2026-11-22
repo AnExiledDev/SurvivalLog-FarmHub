@@ -27,7 +27,7 @@ Farm Hub does what Greenline does, so install one or the other.
 
 ## Requirements
 
-- Survival Log 1.1.20719. Built for this version. A game update can break it until the mod is updated.
+- Survival Log 1.1.21671. Built for this version. A game update can break it until the mod is updated.
 - The [BepInEx Pack for Survival Log](https://www.nexusmods.com/survivallog/mods/12), the BepInEx 6 (IL2CPP) build for the game.
 - [Exiled's Toolkit](https://github.com/AnExiledDev/SurvivalLog-ExiledToolkit) 0.19.0 or newer. Farm Hub does not load without it. It stops Farm Hub's key from firing while you type, shows Farm Hub's messages as toasts while the window is closed, applies settings changed on the Mod Manager's Mods screen without a restart, lays the HUD's tool buttons out four high, in columns, when there are more than four, and its UI size setting sizes the window.
 - Optional: [Mod Manager](https://www.nexusmods.com/survivallog/mods/73). With it, you can change every setting in game on its Mods screen and see what each one does, without opening the config file.
@@ -53,7 +53,7 @@ Settings live in `BepInEx\config\com.dev.survivallog.farmhub.cfg`, created the f
 
 Built against BepInEx `6.0.0-be.788`.
 
-Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.8 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
+Check `BepInEx\LogOutput.log` for `===== Farm Hub 0.5.9 started`, followed by `the panel key waits while you type in the game's text boxes`, `Shift with the panel key opens the window without also sending Tend Garden`, `Farm Hub sees when Tend Garden replants`, `Tend Garden replants from the presets` and `Tend Garden also plants and fertilizes from the presets`. A line starting with `could not hook` means part of the mod does not work on this game version.
 
 ## Known issues
 

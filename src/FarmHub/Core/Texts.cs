@@ -61,6 +61,7 @@ public static class Texts
     public static readonly Phrase AssignedOwn = new("Pots now using {1}: {0}.", "现在使用「{1}」的种植盆：{0} 个。");
     public static readonly Phrase AssignedDefault = new("Pots now using their room's or floor's preset: {0}.", "现在使用所在房间或楼层预设的种植盆：{0} 个。");
     public static readonly Phrase NoSave = new("Pot choices are kept per save, and this game has no save yet. Save the game first.", "种植盆的预设选择按存档保存，而这局游戏还没有存档。请先保存游戏。");
+    public static readonly Phrase NotRead = new("farm-hub.json could not be read, so nothing was changed. Try again, or see " + Log + ".", "无法读取 farm-hub.json，所以没有做任何更改。请再试一次，或查看 " + Log + "。");
     public static readonly Phrase NotSaved = new("farm-hub.json could not be written, so the change lasts until the game is closed. See " + Log + ".", "无法写入 farm-hub.json，更改只在关闭游戏前有效。详见 " + Log + "。");
     public static readonly Phrase RotWarnSet = new("Rotting soon now means within {0} h.", "「快腐烂」现在表示 {0} 小时内。");
     public static readonly Phrase RobotsOn = new("When a seed you picked for a robot runs out, Farm Hub now switches the robot to the next seed in the preset.", "你为机器人选的种子用完时，Farm Hub 现在会换成预设中的下一种种子。");

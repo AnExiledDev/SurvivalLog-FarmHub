@@ -33,7 +33,7 @@ internal sealed class FarmSession
     private readonly FarmPage _page;
     private readonly PageMailbox _messages = PageInbox.Listen(PageCommand.Prefix);
     private readonly WebKeyboard _keyboard = new();
-    private readonly PresetFileOnDisk _file;
+    private readonly PresetStore _presets;
     private readonly Action<int> _saveRotWarn;
     private readonly Action<bool> _saveRobots;
     private readonly Action<bool> _saveFromPresets;
@@ -48,7 +48,6 @@ internal sealed class FarmSession
     private readonly ViewCache _views = new();
     private readonly Func<bool> _isPanelKeyDown;
 
-    private PresetBook? _book;
     private KeyCode _panelKey;
     private bool _isPanelKeyShifted;
     private string _keyName = "";
@@ -75,7 +74,7 @@ internal sealed class FarmSession
         _game = game;
         _readDone = new ReadDone(game);
         _page = page;
-        _file = file;
+        _presets = new PresetStore(file, () => Texts.FirstPresetName.Pick(IsChinese), log);
         _saveRotWarn = saveRotWarn;
         _saveRobots = saveRobots;
         _saveFromPresets = saveFromPresets;
@@ -298,25 +297,7 @@ internal sealed class FarmSession
         }
     }
 
-    /// <summary>
-    /// The presets are read from farm-hub.json the first time they are needed. A file that is there but is not a preset
-    /// file is copied aside before a fresh book replaces it, so nothing anyone wrote is lost.
-    /// </summary>
-    private PresetBook Book()
-    {
-        if (_book != null) return _book;
-
-        var text = _file.Read();
-        var hasText = text is { } written && !string.IsNullOrWhiteSpace(written);
-        var book = text is { } stored && hasText ? PresetJson.ReadBook(stored) : null;
-
-        if (book == null && hasText) _file.SetAside();
-
-        _book = book ?? PresetBook.First(Texts.FirstPresetName.Pick(IsChinese));
-        _log($"presets: {_book.Presets.Count}");
-
-        return _book;
-    }
+    private PresetBook Book() => _presets.Book();
 
     /// <summary>A changed book is used at once and written to disk; a failed write keeps it until the game closes, and says so.</summary>
     private void Keep(BookEdit edit)
@@ -325,9 +306,12 @@ internal sealed class FarmSession
 
         if (edit.Book != null)
         {
-            _book = edit.Book;
-
-            if (!_file.Replace(PresetJson.WriteBook(edit.Book))) message = Texts.NotSaved.Pick(IsChinese);
+            message = _presets.Keep(edit.Book) switch
+            {
+                KeepResult.NotSaved => Texts.NotSaved.Pick(IsChinese),
+                KeepResult.NotRead => Texts.NotRead.Pick(IsChinese),
+                _ => message,
+            };
         }
 
         Say(message);

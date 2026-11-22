@@ -2059,7 +2059,7 @@
   function fillStock(well) {
     var rows = {};
     var ferts = [];
-    var columns = 'minmax(0,1fr) 40px' + cat.caps.map(function () { return ' 24px'; }).join('');
+    var columns = 'minmax(0,1fr) 40px' + cat.caps.map(function () { return ' 30px'; }).join('');
     var head = put(el('div', 'fh-trow fh-thead'), el('span', '', say('colItem')), el('span', 'fh-tc', say('colHave')));
 
     presets().forEach(function (p) {

@@ -1,3 +1,4 @@
+using System;
 using ExiledToolkit.Game;
 using GameCore.HotUpdate.Battle.Show;
 using UnityEngine;
@@ -34,10 +35,30 @@ internal static class GameKeys
 
     /// <summary>
     /// A postfix, so it runs on every frame, also while the Toolkit holds the game's hotkeys back. A field read and no
-    /// call.
+    /// call. A throw here would stop every game hotkey, so a failed read counts as not typing.
     /// </summary>
-    private static void NoteGameTyping(HotKeyManager __instance) => IsGameTyping = __instance != null && __instance._isTextInputActive;
+    private static void NoteGameTyping(HotKeyManager __instance)
+    {
+        try
+        {
+            IsGameTyping = __instance != null && __instance._isTextInputActive;
+        }
+        catch (Exception)
+        {
+            IsGameTyping = false;
+        }
+    }
 
-    /// <summary>The key press is the rare part, so it is asked first and Shift only when it is down.</summary>
-    private static bool SkipTendGardenOnPanelKey() => !(_isPanelKeyShifted && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && IsShiftHeld());
+    /// <summary>The key press is the rare part, so it is asked first and Shift only when it is down. On a failure the game's Tend Garden key runs as usual.</summary>
+    private static bool SkipTendGardenOnPanelKey()
+    {
+        try
+        {
+            return !(_isPanelKeyShifted && _panelKey != KeyCode.None && Input.GetKeyDown(_panelKey) && IsShiftHeld());
+        }
+        catch (Exception)
+        {
+            return true;
+        }
+    }
 }

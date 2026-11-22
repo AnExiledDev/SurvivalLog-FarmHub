@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using FarmHub.Core;
 
 namespace FarmHub.Adapters;
 
@@ -8,7 +9,7 @@ namespace FarmHub.Adapters;
 /// no room for a mod's data, so it lives here. A write goes to a temporary file first and is moved into place, so a
 /// crash mid-write cannot leave half a file.
 /// </summary>
-internal sealed class PresetFileOnDisk
+internal sealed class PresetFileOnDisk : IPresetFile
 {
     private readonly string _path;
     private readonly Action<string> _log;

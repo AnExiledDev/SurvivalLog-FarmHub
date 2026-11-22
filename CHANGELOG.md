@@ -3,6 +3,7 @@
 ## 0.5.9
 
 - The Planting presets tab no longer cuts off long seed names or the None button.
+- If farm-hub.json can't be read, Farm Hub no longer saves over your presets.
 - Made for Survival Log 1.1.21671.
 
 ## 0.5.8

@@ -135,20 +135,20 @@ public class FarmRunTests
 
         game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
 
-        Assert.True(FarmRun.HasAutoWork(game.World, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled));
-        Assert.Equal("Robots: set a new seed for 1 pot size.", Say(FarmRun.Auto(game, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled)));
+        Assert.True(FarmRun.HasAutoWork(game.World, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled));
+        Assert.Equal("Robots: set a new seed for 1 pot size.", Say(FarmRun.Auto(game, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled)));
         Assert.Equal(new RobotTier(2, TomatoSeed, Basic), game.Robots[0].Tiers[0]);
         Assert.Equal(new RobotTier(4, 0, 0), game.Robots[0].Tiers[1]);
 
         game.Stock[TomatoSeed] = 0;
-        FarmRun.Auto(game, book, 1f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+        FarmRun.Auto(game, book, 1, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled);
 
         Assert.Equal(new RobotTier(2, WheatSeed, Basic), game.Robots[0].Tiers[0]);
 
         // With every listed seed gone the tier is emptied, and the toast says so instead of claiming a new seed.
         game.Stock[WheatSeed] = 0;
 
-        var emptied = FarmRun.Auto(game, book, 2f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+        var emptied = FarmRun.Auto(game, book, 2, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled);
 
         Assert.True(FarmMessages.IsWorthShowing(emptied));
         Assert.Equal("Robots: out of seeds for 1 pot size.", Say(emptied));
@@ -167,12 +167,12 @@ public class FarmRunTests
         game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, 0, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
 
         FarmRun.SetRobotTier(game, 7, 0, WheatSeed, 0, filled);
-        FarmRun.Auto(game, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+        FarmRun.Auto(game, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled);
 
         Assert.Equal(new RobotTier(2, WheatSeed, 0), game.Robots[0].Tiers[0]);
 
         FarmRun.SetRobotTier(game, 7, 0, 0, 0, filled);
-        FarmRun.Auto(game, book, 1f, new Dictionary<long, float>(), isKeepingRobotsStocked: false, filled);
+        FarmRun.Auto(game, book, 1, new Dictionary<long, double>(), isKeepingRobotsStocked: false, filled);
 
         Assert.Equal(new RobotTier(2, TomatoSeed, 0), game.Robots[0].Tiers[0]);
     }
@@ -182,16 +182,16 @@ public class FarmRunTests
     {
         var game = new FakeGame { Stock = { [WheatSeed] = 2 } };
         var book = WheatEverywhere(autoReplant: true);
-        var retryAt = new Dictionary<long, float>();
+        var retryAt = new Dictionary<long, double>();
 
         game.Pots.AddRange(new[] { P(1), P(2, Big) });
 
-        var first = FarmRun.Auto(game, book, now: 0f, retryAt, isKeepingRobotsStocked: false);
+        var first = FarmRun.Auto(game, book, now: 0, retryAt, isKeepingRobotsStocked: false);
 
         game.Stock[MelonSeed] = 1;
 
-        var soon = FarmRun.Auto(game, book, now: 30f, retryAt, isKeepingRobotsStocked: false);
-        var later = FarmRun.Auto(game, book, now: 61f, retryAt, isKeepingRobotsStocked: false);
+        var soon = FarmRun.Auto(game, book, now: 30, retryAt, isKeepingRobotsStocked: false);
+        var later = FarmRun.Auto(game, book, now: 61, retryAt, isKeepingRobotsStocked: false);
 
         Assert.Equal("Auto replant: planting 1 pot.", Say(first));
         Assert.False(FarmMessages.IsWorthShowing(soon));
@@ -206,7 +206,7 @@ public class FarmRunTests
 
         game.Pots.Add(P(1));
 
-        Assert.False(FarmMessages.IsWorthShowing(FarmRun.Auto(game, WheatEverywhere(), 0f, new Dictionary<long, float>(), false)));
+        Assert.False(FarmMessages.IsWorthShowing(FarmRun.Auto(game, WheatEverywhere(), 0, new Dictionary<long, double>(), false)));
         Assert.Empty(game.Planted);
     }
 

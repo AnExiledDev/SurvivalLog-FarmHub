@@ -16,6 +16,7 @@ public static class Texts
     public static readonly Phrase NoWorld = new("the game world is not loaded", "游戏世界尚未载入");
     public static readonly Phrase Away = new("you are away from home", "你不在家中");
     public static readonly Phrase ReadFailed = new("the pots could not be read, see " + Log, "无法读取种植盆，详见 " + Log);
+    public static readonly Phrase PresetsNotRead = new("your presets in farm-hub.json could not be read. Close any program that has it open, and Farm Hub will try again within 10 seconds. See " + Log, "无法读取 farm-hub.json 中的预设。请关闭打开它的程序，Farm Hub 会在 10 秒内重试。详见 " + Log);
     public static readonly Phrase Gone = new("That pot is gone.", "这个种植盆已经不在了。");
     public static readonly Counted Planted = new(new("Planting 1 pot.", "正在种植 {0} 个种植盆。"), new("Planting {0} pots.", "正在种植 {0} 个种植盆。"));
     public static readonly Counted AutoPlanted = new(new("Auto replant: planting 1 pot.", "自动补种：正在种植 {0} 个种植盆。"), new("Auto replant: planting {0} pots.", "自动补种：正在种植 {0} 个种植盆。"));

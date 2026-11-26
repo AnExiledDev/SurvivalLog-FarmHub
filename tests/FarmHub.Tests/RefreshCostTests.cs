@@ -177,20 +177,20 @@ public class RefreshCostTests
     public void Auto_is_skipped_only_when_it_would_do_nothing()
     {
         var game = new FakeGame { Stock = { [WheatSeed] = 2 } };
-        var retryAt = new Dictionary<long, float>();
+        var retryAt = new Dictionary<long, double>();
 
         game.Pots.AddRange(new[] { P(1), P(2, state: PotState.Growing, plant: Wheat) });
 
         Assert.False(FarmRun.HasAutoReplant(WheatEverywhere()));
         Assert.True(FarmRun.HasAutoReplant(WheatEverywhere(autoReplant: true)));
-        Assert.False(FarmRun.HasAutoWork(game.World, WheatEverywhere(), 0f, retryAt, isKeepingRobotsStocked: false));
-        Assert.True(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 0f, retryAt, isKeepingRobotsStocked: false));
+        Assert.False(FarmRun.HasAutoWork(game.World, WheatEverywhere(), 0, retryAt, isKeepingRobotsStocked: false));
+        Assert.True(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 0, retryAt, isKeepingRobotsStocked: false));
 
         // A pot that just failed waits out its minute, and is worth a try again after it.
-        retryAt[1] = 60f;
+        retryAt[1] = 60;
 
-        Assert.False(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 30f, retryAt, isKeepingRobotsStocked: false));
-        Assert.True(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 61f, retryAt, isKeepingRobotsStocked: false));
+        Assert.False(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 30, retryAt, isKeepingRobotsStocked: false));
+        Assert.True(FarmRun.HasAutoWork(game.World, WheatEverywhere(autoReplant: true), 61, retryAt, isKeepingRobotsStocked: false));
     }
 
     [Fact]
@@ -201,8 +201,8 @@ public class RefreshCostTests
 
         game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, WheatSeed, 0), new RobotTier(4, 0, 0), new RobotTier(6, 0, 0) }, 50f, 100f, IsOn: true));
 
-        Assert.True(FarmRun.HasAutoWork(game.World, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: true));
-        Assert.False(FarmRun.HasAutoWork(game.World, book, 0f, new Dictionary<long, float>(), isKeepingRobotsStocked: false));
+        Assert.True(FarmRun.HasAutoWork(game.World, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: true));
+        Assert.False(FarmRun.HasAutoWork(game.World, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: false));
     }
 
     [Fact]

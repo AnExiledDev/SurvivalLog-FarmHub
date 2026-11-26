@@ -1,97 +1,181 @@
-using System.Collections.Generic;
 using FarmHub.Core;
 using Xunit;
 using static FarmHub.Tests.FakeGame;
 
 namespace FarmHub.Tests;
 
-/// <summary>A preset file that could not be read is never written over, so a locked file can't wipe the player's presets.</summary>
+/// <summary>
+/// farm-hub.json and the presets in it: what is read, what is written, and that presets the mod could not read are
+/// never saved over.
+/// </summary>
 public class PresetStoreTests
 {
-    private sealed class FakeFile : IPresetFile
+    private static readonly StoredText Locked = new StoredText.Failed("in use by another program");
+    private static readonly PresetBook Saved = Book(Preset("p1", new() { [2] = new[] { Step(WheatSeed) } }), Preset("p2", new()));
+    private static readonly StoredText SavedFile = new StoredText.Found(PresetJson.WriteBook(Saved));
+    private static readonly StoredText NotPresets = new StoredText.Found("not json {");
+
+    private readonly List<string> _log = new();
+    private double _now;
+
+    private PresetStore Store(FakePresetFile file) => new(file, () => "First", () => _now, _log.Add);
+
+    /// <summary>A change the player makes in the window: a new preset.</summary>
+    private static PresetBook NewPresetIn(PresetBook book) => book.Save(Preset("", new() { [2] = new[] { Step(WheatSeed) } }), Array.Empty<string>());
+
+    /// <summary>A farm with an empty pot, a growing pot and a robot whose seed ran out, put through the runs that read the presets.</summary>
+    private static FakeGame FarmRunWith(PresetBook book)
     {
-        public Queue<string?> Reads = new();
-        public List<string> Writes = new();
-        public int SetAsideCount;
+        var game = new FakeGame { Stock = { [WheatSeed] = 5, [TomatoSeed] = 0, [Basic] = 5 } };
 
-        public string? Read() => Reads.Count > 0 ? Reads.Dequeue() : "";
+        game.Pots.AddRange(new[] { P(1), P(2, state: PotState.Growing, plant: Wheat) });
+        game.Robots.Add(new Robot(7, "Robot 1", 1, new[] { new RobotTier(2, TomatoSeed, 0) }, 50f, 100f, IsOn: true));
+        FarmRun.Auto(game, book, 0, new Dictionary<long, double>(), isKeepingRobotsStocked: true);
+        FarmRun.FromPresets(game, book);
+        FarmRun.Plant(game, book, null);
+        FarmRun.Fertilize(game, book, null);
 
-        public bool Replace(string text)
+        return game;
+    }
+
+    [Fact]
+    public void A_saved_file_gives_back_its_presets()
+    {
+        var store = Store(new FakePresetFile { Text = SavedFile });
+
+        Assert.Equal(new[] { "p1", "p2" }, store.Book().Presets.Select(preset => preset.Id));
+        Assert.True(store.IsRead);
+    }
+
+    [Fact]
+    public void With_no_file_yet_nothing_is_copied_aside_and_the_first_change_is_saved()
+    {
+        var file = new FakePresetFile();
+        var store = Store(file);
+        var changed = NewPresetIn(store.Book());
+
+        Assert.Equal(KeepResult.Saved, store.Keep(changed));
+        Assert.Equal(new[] { "read", "write" }, file.Steps);
+        Assert.Equal(PresetJson.WriteBook(changed), Assert.Single(file.Writes));
+    }
+
+    [Fact]
+    public void While_another_program_has_the_file_open_it_is_read_again_only_every_10_seconds()
+    {
+        var file = new FakePresetFile { Text = Locked };
+        var store = Store(file);
+        var standIn = store.Book();
+
+        _now = 9;
+
+        Assert.Same(standIn, store.Book());
+        Assert.Equal(1, file.Reads);
+        Assert.False(store.IsRead);
+
+        file.Text = SavedFile;
+        _now = 10;
+
+        Assert.Equal(2, store.Book().Presets.Count);
+        Assert.Equal(2, file.Reads);
+        Assert.True(store.IsRead);
+    }
+
+    [Fact]
+    public void A_problem_that_lasts_is_logged_once()
+    {
+        var file = new FakePresetFile { Text = Locked };
+        var store = Store(file);
+
+        foreach (var at in new double[] { 0, 10, 20 })
         {
-            Writes.Add(text);
-
-            return true;
+            _now = at;
+            store.Book();
         }
 
-        public void SetAside() => SetAsideCount++;
-    }
-
-    private static readonly PresetBook Saved = Book(Preset("p1", new()), Preset("p2", new()));
-
-    private static PresetStore Store(FakeFile file) => new(file, () => "First", _ => { });
-
-    [Fact]
-    public void An_edit_made_while_the_file_could_not_be_read_is_not_written()
-    {
-        var file = new FakeFile();
-        file.Reads.Enqueue(null);
-        file.Reads.Enqueue(null);
-        var store = Store(file);
-
-        var shown = store.Book();
-
-        Assert.Equal(KeepResult.NotRead, store.Keep(shown));
-        Assert.Empty(file.Writes);
-        Assert.Equal(0, file.SetAsideCount);
+        Assert.Equal(3, file.Reads);
+        Assert.Contains("in use by another program", Assert.Single(_log));
     }
 
     [Fact]
-    public void Once_the_file_reads_again_the_real_presets_come_back_and_the_stale_edit_is_dropped()
+    public void A_change_made_while_the_file_could_not_be_read_is_not_written()
     {
-        var file = new FakeFile();
-        file.Reads.Enqueue(null);
-        file.Reads.Enqueue(PresetJson.WriteBook(Saved));
+        var file = new FakePresetFile { Text = Locked };
         var store = Store(file);
 
-        var stale = store.Book();
-
-        Assert.Equal(KeepResult.NotRead, store.Keep(stale));
+        Assert.Equal(KeepResult.NotRead, store.Keep(NewPresetIn(store.Book())));
         Assert.Empty(file.Writes);
+        Assert.False(store.IsRead);
+    }
+
+    [Fact]
+    public void Retry_reads_the_file_at_once_and_only_until_the_presets_are_read()
+    {
+        var file = new FakePresetFile { Text = Locked };
+        var store = Store(file);
+
+        store.Book();
+        file.Text = SavedFile;
+        store.Retry();
+
         Assert.Equal(2, store.Book().Presets.Count);
+
+        store.Retry();
+
+        Assert.Equal(2, file.Reads);
     }
 
     [Fact]
-    public void With_no_file_yet_an_edit_is_saved()
+    public void A_file_that_is_not_a_preset_file_is_copied_aside_then_replaced_with_a_fresh_book()
     {
-        var file = new FakeFile();
+        var file = new FakePresetFile { Text = NotPresets };
         var store = Store(file);
-
         var book = store.Book();
 
-        Assert.Single(book.Presets);
-        Assert.Equal(KeepResult.Saved, store.Keep(book));
-        Assert.Single(file.Writes);
+        Assert.Equal(new[] { "read", "copy", "write" }, file.Steps);
+        Assert.Equal(PresetJson.WriteBook(book), Assert.Single(file.Writes));
+        Assert.Equal("First", Assert.Single(book.Presets).Name);
+        Assert.Contains(_log, line => line.Contains("farm-hub.json.unreadable-1"));
     }
 
     [Fact]
-    public void A_file_that_is_not_a_preset_file_is_copied_aside_before_it_is_replaced()
+    public void A_file_that_is_not_a_preset_file_and_cannot_be_copied_aside_is_never_written_over()
     {
-        var file = new FakeFile();
-        file.Reads.Enqueue("not json");
+        var file = new FakePresetFile { Text = NotPresets, CanCopy = false };
         var store = Store(file);
 
-        var book = store.Book();
-
-        Assert.Equal(1, file.SetAsideCount);
-        Assert.Equal(KeepResult.Saved, store.Keep(book));
+        Assert.Equal(KeepResult.NotRead, store.Keep(NewPresetIn(store.Book())));
+        Assert.Empty(file.Writes);
+        Assert.False(store.IsRead);
+        Assert.Contains("access denied", Assert.Single(_log));
     }
 
     [Fact]
-    public void A_saved_file_loads_its_presets()
+    public void A_change_that_cannot_be_written_is_used_until_the_game_closes()
     {
-        var file = new FakeFile();
-        file.Reads.Enqueue(PresetJson.WriteBook(Saved));
+        var file = new FakePresetFile { Text = SavedFile, CanWrite = false };
+        var store = Store(file);
+        var changed = NewPresetIn(store.Book());
 
-        Assert.Equal(2, Store(file).Book().Presets.Count);
+        Assert.Equal(KeepResult.NotSaved, store.Keep(changed));
+        Assert.Same(changed, store.Book());
+    }
+
+    /// <summary>
+    /// While the file can't be read, the stand-in still drives the auto pass, Tend from presets and the replant
+    /// walk, so it must leave the farm alone: the player's real presets might say something else. The same farm with
+    /// working presets does get planted and fed, so the empty result comes from the stand-in.
+    /// </summary>
+    [Fact]
+    public void The_stand_in_leaves_the_farm_alone()
+    {
+        var withPresets = FarmRunWith(Book(Preset("p1", new() { [2] = new[] { Step(TomatoSeed), Step(WheatSeed) } }, ferts: new[] { Basic }, autoReplant: true)));
+        var withStandIn = FarmRunWith(Store(new FakePresetFile { Text = Locked }).Book());
+
+        Assert.NotEmpty(withPresets.Planted);
+        Assert.NotEmpty(withPresets.Fertilized);
+        Assert.Equal(WheatSeed, Assert.Single(withPresets.Robots).Tiers[0].SeedId);
+        Assert.Empty(withStandIn.Planted);
+        Assert.Empty(withStandIn.Fertilized);
+        Assert.Equal(TomatoSeed, Assert.Single(withStandIn.Robots).Tiers[0].SeedId);
     }
 }

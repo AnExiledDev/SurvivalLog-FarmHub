@@ -57,7 +57,7 @@ public abstract record FarmOutcome
 /// <summary>The presses: plant, fertilize and tend, each read fresh from the game and each failing soft through the port.</summary>
 public static class FarmRun
 {
-    private const float RetrySeconds = 60f;
+    private const double RetrySeconds = 60;
 
     /// <param name="onlyPots">Null for every empty pot.</param>
     public static FarmOutcome Plant(IFarmGame game, PresetBook book, IReadOnlyCollection<long>? onlyPots) => WithWorld(game, world =>
@@ -153,7 +153,7 @@ public static class FarmRun
     /// waits a minute before it is tried again.
     /// </summary>
     /// <param name="filled">Per robot and tier, the seed Farm Hub put there this session (see Picks.IsFollowing); each fill is written in.</param>
-    public static FarmOutcome Auto(IFarmGame game, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked,
+    public static FarmOutcome Auto(IFarmGame game, PresetBook book, double now, IDictionary<long, double> retryAt, bool isKeepingRobotsStocked,
         Dictionary<(long Robot, int Tier), int>? filled = null) => WithWorld(game, world =>
     {
         filled ??= new Dictionary<(long Robot, int Tier), int>();
@@ -196,7 +196,7 @@ public static class FarmRun
     /// a robot tier it would fill or switch. The caller skips Auto while this is false.
     /// </summary>
     /// <param name="filled">As for Auto; null when Farm Hub has filled nothing this session.</param>
-    public static bool HasAutoWork(FarmWorld world, PresetBook book, float now, IDictionary<long, float> retryAt, bool isKeepingRobotsStocked,
+    public static bool HasAutoWork(FarmWorld world, PresetBook book, double now, IDictionary<long, double> retryAt, bool isKeepingRobotsStocked,
         Dictionary<(long Robot, int Tier), int>? filled = null)
     {
         foreach (var pot in world.Pots)
@@ -210,7 +210,7 @@ public static class FarmRun
     }
 
     /// <summary>The auto pass's own test of a pot, before the pot's seed is picked: its preset replants and it is not waiting out a retry.</summary>
-    private static bool IsAutoReplanted(FarmWorld world, PresetBook book, Pot pot, float now, IDictionary<long, float> retryAt) =>
+    private static bool IsAutoReplanted(FarmWorld world, PresetBook book, Pot pot, double now, IDictionary<long, double> retryAt) =>
         book.PresetFor(world.SaveKey, pot)?.AutoReplant == true && !(retryAt.TryGetValue(pot.Id, out var at) && now < at);
 
     /// <summary>The chore a pot needs first, or null when it needs none.</summary>

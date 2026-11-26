@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.11
+
+- If `farm-hub.json` can't be read, the Farm Hub window now says so. Before, it showed one "My farm" preset, as if your presets were gone.
+- While `farm-hub.json` can't be read, Farm Hub tries it again every 10 seconds, and right away when you open the window or press a button. Before, it tried every second or two and wrote a line to the log each time.
+- A `farm-hub.json` that can't be read as presets is now replaced with a fresh one right after it's copied aside. Before, every start made another copy of it.
+- If that copy can't be made, Farm Hub now leaves the file alone. Before, your next change could save over it.
+- Each copy of an unreadable `farm-hub.json` now gets the date and time in its name, so a later copy never replaces an earlier one.
+- Made for Survival Log 1.1.21671.
+
 ## 0.5.10
 
 - Farm Hub does a little less work while you play.

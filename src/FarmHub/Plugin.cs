@@ -19,7 +19,7 @@ namespace FarmHub;
 public sealed class Plugin : BasePlugin
 {
     private const string Guid = "com.dev.survivallog.farmhub";
-    private const string Version = "0.5.10";
+    private const string Version = "0.5.11";
 
     /// <summary>Exiled's Toolkit: its shared helpers, toasts, live settings, UI size and typing check all come from it.</summary>
     private const string ToolkitGuid = "com.dev.survivallog.exiledtoolkit";
@@ -64,7 +64,7 @@ public sealed class Plugin : BasePlugin
         var session = new FarmSession(
             new GameFarm(log.Write),
             new FarmPage(log.Write),
-            new PresetFileOnDisk(Path.Combine(Paths.ConfigPath, PresetFileName), log.Write),
+            new PresetFileOnDisk(Path.Combine(Paths.ConfigPath, PresetFileName), () => DateTime.Now),
             hours => rotWarnHours.Value = hours,
             isOn => isKeepingRobotsStocked.Value = isOn,
             isOn => isTendFromPresets.Value = isOn,

@@ -27,7 +27,7 @@ public static class Warmup
         var game = new Home(world);
         var settings = new ViewSettings("Shift+G", 12, IsKeepingRobotsStocked: true);
         var views = new ViewCache();
-        var retryAt = new Dictionary<long, float>();
+        var retryAt = new Dictionary<long, double>();
         var written = 0;
 
         written += CatalogView.Write(world.Catalog).Length;
@@ -39,8 +39,8 @@ public static class Warmup
         written += views.Hud(world, book, 12, fromPresets: true).Hud.Length;
         written += views.Window(world, book, settings).Length;
         written += PresetJson.ReadBook(PresetJson.WriteBook(book))?.Presets.Count ?? 0;
-        written += FarmRun.HasAutoWork(world, book, 0f, retryAt, isKeepingRobotsStocked: true) ? 1 : 0;
-        written += FarmMessages.Describe(FarmRun.Auto(game, book, 0f, retryAt, isKeepingRobotsStocked: true), false).Length;
+        written += FarmRun.HasAutoWork(world, book, 0, retryAt, isKeepingRobotsStocked: true) ? 1 : 0;
+        written += FarmMessages.Describe(FarmRun.Auto(game, book, 0, retryAt, isKeepingRobotsStocked: true), false).Length;
         written += FarmMessages.Describe(FarmRun.Plant(game, book, null), false).Length;
         written += FarmMessages.Describe(FarmRun.Fertilize(game, book, null), false).Length;
         written += FarmMessages.Describe(FarmRun.TendAll(game, book), false).Length;

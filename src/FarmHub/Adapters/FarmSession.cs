@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using ExiledToolkit;
 using ExiledToolkit.Game;
 using ExiledToolkit.Kit;
@@ -17,16 +16,14 @@ namespace FarmHub.Adapters;
 /// </summary>
 internal sealed class FarmSession
 {
-    private const float OpenRefreshSeconds = 1f;
-    private const float ClosedRefreshSeconds = 2f;
-    private const float AutoSeconds = 5f;
-    private const float SowRetrySeconds = 0.5f;
+    private const double OpenRefreshSeconds = 1;
+    private const double ClosedRefreshSeconds = 2;
+    private const double AutoSeconds = 5;
+    private const double SowRetrySeconds = 0.5;
     private const int SowTries = 6;
 
     /// <summary>The name the window holds the game's hotkeys and clicks under in Exiled's Toolkit.</summary>
     private const string WindowName = "FarmHub.window";
-
-    private static readonly long StartedAt = Stopwatch.GetTimestamp();
 
     private readonly GameFarm _game;
     private readonly ReadDone _readDone;
@@ -38,7 +35,7 @@ internal sealed class FarmSession
     private readonly Action<bool> _saveRobots;
     private readonly Action<bool> _saveFromPresets;
     private readonly Action<string> _log;
-    private readonly Dictionary<long, float> _retryAt = new();
+    private readonly Dictionary<long, double> _retryAt = new();
     private readonly Dictionary<long, int> _sowTries = new();
 
     /// <summary>Per robot and tier, the seed Farm Hub filled in from the pot-size seeds this session, or Picks.PlayerPicked.</summary>
@@ -61,20 +58,20 @@ internal sealed class FarmSession
     private FarmCatalog? _sentCatalog;
     private int? _sentBadge;
     private bool? _sentLive;
-    private float _nextRefreshAt;
-    private float _nextAutoAt;
-    private float _nextSowAt;
+    private double _nextRefreshAt;
+    private double _nextAutoAt;
+    private double _nextSowAt;
     private string _sentHud = "";
     private Phase _phase;
     private FarmRead? _lastRead;
     private FarmWorld? _lastWorld;
 
-    public FarmSession(GameFarm game, FarmPage page, PresetFileOnDisk file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
+    public FarmSession(GameFarm game, FarmPage page, IPresetFile file, Action<int> saveRotWarn, Action<bool> saveRobots, Action<bool> saveFromPresets, Action<string> log)
     {
         _game = game;
         _readDone = new ReadDone(game);
         _page = page;
-        _presets = new PresetStore(file, () => Texts.FirstPresetName.Pick(IsChinese), log);
+        _presets = new PresetStore(file, () => Texts.FirstPresetName.Pick(IsChinese), () => Clock.Now, log);
         _saveRotWarn = saveRotWarn;
         _saveRobots = saveRobots;
         _saveFromPresets = saveFromPresets;
@@ -121,7 +118,7 @@ internal sealed class FarmSession
 
     public void Update()
     {
-        var now = Now();
+        var now = Clock.Now;
 
         // The script check is its own small call to the web view, so it waits for a frame with no refresh work.
         if (_phase == Phase.Idle) _page.KeepInstalled(now);
@@ -152,11 +149,8 @@ internal sealed class FarmSession
         Step(now);
     }
 
-    /// <summary>Seconds since the mod loaded, from .NET's own clock: asking Unity for the time every frame is a call into the game.</summary>
-    private static float Now() => (float)((Stopwatch.GetTimestamp() - StartedAt) / (double)Stopwatch.Frequency);
-
     /// <summary>One part of the refresh per frame, so the read, the views and the auto pass never share a frame.</summary>
-    private void Step(float now)
+    private void Step(double now)
     {
         switch (_phase)
         {
@@ -237,7 +231,7 @@ internal sealed class FarmSession
                 _sentCatalog = null;
                 _sentHud = "";
                 _shownView = "";
-                _nextRefreshAt = 0f;
+                _nextRefreshAt = 0;
                 break;
             case PageCommand.NoScript:
                 _page.Install();
@@ -297,6 +291,7 @@ internal sealed class FarmSession
         }
     }
 
+    /// <summary>The player's presets, or while farm-hub.json can't be read, a stand-in that plants and feeds nothing.</summary>
     private PresetBook Book() => _presets.Book();
 
     /// <summary>A changed book is used at once and written to disk; a failed write keeps it until the game closes, and says so.</summary>
@@ -363,7 +358,7 @@ internal sealed class FarmSession
     }
 
     /// <summary>A replant walk's pot, sown from its preset when the walk is done with it, and the extras after the game's Tend Garden.</summary>
-    private void TakeTendHooks(float now)
+    private void TakeTendHooks(double now)
     {
         if (TendHooks.HasSows)
         {
@@ -387,7 +382,7 @@ internal sealed class FarmSession
     }
 
     /// <summary>The walk that reached the pot still holds it for a moment, so a pot the game calls busy is tried again shortly.</summary>
-    private void SowQueued(float now)
+    private void SowQueued(double now)
     {
         _nextSowAt = now + SowRetrySeconds;
         _sowing.Clear();
@@ -458,6 +453,9 @@ internal sealed class FarmSession
             return;
         }
 
+        // The player just opened the window, so presets that could not be read are tried again now.
+        _presets.Retry();
+
         _isOpen = true;
         InputGate.Opened(WindowName);
         Show(read, isOpening: true);
@@ -485,7 +483,7 @@ internal sealed class FarmSession
     {
         _game.RestartRead();
         _phase = Phase.Reading;
-        _nextRefreshAt = Now() + OpenRefreshSeconds;
+        _nextRefreshAt = Clock.Now + OpenRefreshSeconds;
     }
 
     private ViewSettings Settings() => _settings ??= new ViewSettings(_keyName, _rotWarnHours, _isKeepingRobotsStocked);
@@ -500,7 +498,12 @@ internal sealed class FarmSession
         {
             case FarmRead.Ready ready:
                 SendCatalog(ready.World.Catalog);
-                view = _views.Window(ready.World, Book(), settings, _filled);
+
+                // The stand-in is not the player's presets. If the window showed it, the presets would look gone, and a
+                // change made on it could land on the real presets once the file reads again.
+                view = _presets.IsRead
+                    ? _views.Window(ready.World, Book(), settings, _filled)
+                    : FarmView.NotReady(Texts.NotReady.Say(IsChinese, Texts.PresetsNotRead.Pick(IsChinese)), settings);
                 break;
             case FarmRead.NotReady notReady:
                 view = FarmView.NotReady(Texts.NotReady.Say(IsChinese, notReady.Reason), settings);
@@ -545,7 +548,7 @@ internal sealed class FarmSession
     /// when that read shows something for it to do. Only a pass that did something says so, as a toast, so a quiet farm
     /// stays quiet.
     /// </summary>
-    private void RunAuto(float now)
+    private void RunAuto(double now)
     {
         _nextAutoAt = now + AutoSeconds;
 
@@ -583,6 +586,10 @@ internal sealed class FarmSession
     private void Press(string name, Func<FarmOutcome> press)
     {
         string message;
+
+        // The player just pressed something, so presets that could not be read are tried again now rather than up to
+        // 10 seconds later.
+        _presets.Retry();
 
         try
         {

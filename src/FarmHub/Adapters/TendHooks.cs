@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using ExiledToolkit.Game;
+using ExiledToolkit.Kit;
 using GameCore.HotUpdate;
 using GameCore.HotUpdate.Battle.Logic;
-using UnityEngine;
 
 namespace FarmHub.Adapters;
 
@@ -17,9 +17,9 @@ namespace FarmHub.Adapters;
 internal static class TendHooks
 {
     private const int PlantAction = 1610;
-    private const float ReplantSeconds = 600f;
+    private const double ReplantSeconds = 600;
 
-    private static readonly Dictionary<long, float> ReplantSentAt = new();
+    private static readonly Dictionary<long, double> ReplantSentAt = new();
     private static readonly List<long> Sows = new();
 
     private static PatchKit? _hooks;
@@ -75,7 +75,7 @@ internal static class TendHooks
         {
             if (__2 != PlantAction) return;
 
-            var now = Time.unscaledTime;
+            var now = Clock.Now;
 
             ReplantSentAt[__0] = now;
 
@@ -103,7 +103,7 @@ internal static class TendHooks
 
             var potId = parties.Item2.InstanceId;
 
-            if (!ReplantSentAt.Remove(potId, out var sentAt) || Time.unscaledTime - sentAt > ReplantSeconds) return true;
+            if (!ReplantSentAt.Remove(potId, out var sentAt) || Clock.Now - sentAt > ReplantSeconds) return true;
             if (ChallengeBlockRules.IsBlocked(ChallengeBlockRules.TagNoPlant) || !CanSow(potId)) return true;
 
             Sows.Add(potId);
@@ -127,7 +127,7 @@ internal static class TendHooks
         if (IsOn && !IsOwnBatch) _isPatrolSeen = true;
     }
 
-    private static void Forget(float now)
+    private static void Forget(double now)
     {
         var old = new List<long>();
 

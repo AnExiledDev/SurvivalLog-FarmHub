@@ -24,7 +24,7 @@ internal sealed class GameFarm : IFarmGame
     private const int FertilizerCategory = 11;
     private const int RobotTiers = 3;
     private const float SecondsPerHour = 3600f;
-    private const float SuitabilitySeconds = 30f;
+    private const double SuitabilitySeconds = 30;
     private const Problems KnownProblems = Problems.Pests | Problems.Weeds | Problems.Dry | Problems.TooDark | Problems.TooBright | Problems.TooCold | Problems.NeedsFeed;
 
     // The periodic read and the catalog build each run a slice per frame, each slice stopping once it has used this
@@ -68,7 +68,7 @@ internal sealed class GameFarm : IFarmGame
     private readonly Dictionary<int, string?> _robotNames = new();
 
     /// <summary>A pot's light and heat change only when the player builds or moves something, so its check is kept a while.</summary>
-    private readonly Dictionary<(long PotId, int KindId), (float At, HashSet<int> Crops)> _unsuitable = new();
+    private readonly Dictionary<(long PotId, int KindId), (double At, HashSet<int> Crops)> _unsuitable = new();
     private (IntPtr World, string? SaveKey) _memoKey;
 
     public GameFarm(Action<string> log)
@@ -277,7 +277,7 @@ internal sealed class GameFarm : IFarmGame
 
     private ReadRun StartRead(Game game, bool isSync)
     {
-        var run = new ReadRun(game.World.Pointer, isSync, UnityEngine.Time.unscaledTime);
+        var run = new ReadRun(game.World.Pointer, isSync, Clock.Now);
 
         run.Job = new SlicedJob(ReadSteps(game, run));
 
@@ -1040,7 +1040,7 @@ internal sealed class GameFarm : IFarmGame
     /// <summary>One read of the farm in progress: its world, its clock, its one suitability recheck, and what it found.</summary>
     private sealed class ReadRun
     {
-        public ReadRun(IntPtr world, bool isSync, float now)
+        public ReadRun(IntPtr world, bool isSync, double now)
         {
             World = world;
             IsSync = isSync;
@@ -1051,7 +1051,7 @@ internal sealed class GameFarm : IFarmGame
 
         public bool IsSync { get; }
 
-        public float Now { get; }
+        public double Now { get; }
 
         public SlicedJob Job { get; set; } = null!;
 
